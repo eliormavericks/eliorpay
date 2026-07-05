@@ -1,0 +1,278 @@
+/* ============================================================
+   GarantiePay — style.css
+   Couche de finition : micro-interactions, transitions fluides,
+   feedback tactile, sans changer l'identité visuelle existante.
+   ============================================================ */
+
+:root {
+  --gp-dark: #0c1b33;
+  --gp-blue: #2563eb;
+  --gp-blue-glow: rgba(37, 99, 235, 0.35);
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---------- Base : rendu plus doux partout ---------- */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  animation: gpFadeIn 0.5s var(--ease-smooth) both;
+}
+
+@keyframes gpFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---------- Carte d'authentification : entrée en douceur ---------- */
+#authSection {
+  animation: gpRiseIn 0.6s var(--ease-smooth) both;
+}
+
+@keyframes gpRiseIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------- Onglets Connexion / Inscription ---------- */
+#tabConnexion, #tabInscription {
+  position: relative;
+  transition: color 0.25s var(--ease-smooth), background-color 0.3s var(--ease-smooth),
+              box-shadow 0.3s var(--ease-smooth), transform 0.15s var(--ease-snap);
+}
+#tabConnexion:active, #tabInscription:active { transform: scale(0.97); }
+
+/* ---------- Sélecteur de rôle (Client / Vendeur / Livreur) ---------- */
+.role-btn {
+  transition: background-color 0.25s var(--ease-smooth), color 0.25s var(--ease-smooth),
+              border-color 0.25s var(--ease-smooth), transform 0.18s var(--ease-snap),
+              box-shadow 0.25s var(--ease-smooth);
+}
+.role-btn:hover { transform: translateY(-2px); }
+.role-btn:active { transform: translateY(0) scale(0.96); }
+.role-btn.bg-blue-50 {
+  box-shadow: 0 4px 16px -4px var(--gp-blue-glow);
+}
+.role-btn span:first-child {
+  display: inline-block;
+  transition: transform 0.25s var(--ease-snap);
+}
+.role-btn:hover span:first-child { transform: scale(1.15) rotate(-4deg); }
+
+/* ---------- Champs de saisie : focus plus vivant ---------- */
+input {
+  transition: background-color 0.25s var(--ease-smooth), box-shadow 0.25s var(--ease-smooth),
+              border-color 0.25s var(--ease-smooth), transform 0.15s var(--ease-snap);
+}
+input:focus {
+  transform: translateY(-1px);
+}
+
+/* ---------- Boutons : retour tactile net + halo au survol ---------- */
+button {
+  transition: transform 0.15s var(--ease-snap), box-shadow 0.25s var(--ease-smooth),
+              background-color 0.2s var(--ease-smooth), opacity 0.2s ease;
+  will-change: transform;
+}
+button:active { transform: scale(0.97); }
+
+/* Effet "ripple" léger au clic sur les boutons d'action principaux */
+button.bg-gpBlue, button.bg-emerald-500, button.bg-amber-500,
+button#btnActionAuth, button#btnConfirmerAutoScan {
+  position: relative;
+  overflow: hidden;
+}
+button.bg-gpBlue::after, button.bg-emerald-500::after, button.bg-amber-500::after,
+button#btnActionAuth::after, button#btnConfirmerAutoScan::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at var(--rx, 50%) var(--ry, 50%), rgba(255,255,255,0.35), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+button.bg-gpBlue:active::after, button.bg-emerald-500:active::after, button.bg-amber-500:active::after,
+button#btnActionAuth:active::after, button#btnConfirmerAutoScan:active::after {
+  opacity: 1;
+  transition: opacity 0s;
+}
+
+/* ---------- Cartes / panneaux : légère élévation au survol ---------- */
+.dashboard-view .bg-white,
+#zoneRecuUnique,
+header {
+  transition: box-shadow 0.3s var(--ease-smooth), transform 0.3s var(--ease-smooth);
+}
+.dashboard-view .rounded-2xl.bg-white:hover,
+.dashboard-view .rounded-xl.bg-slate-50:hover {
+  box-shadow: 0 10px 28px -10px rgba(15, 23, 42, 0.14);
+}
+
+/* ---------- Apparition fluide du tableau de bord ---------- */
+#appInternalLayout:not(.hidden) {
+  animation: gpFadeUp 0.5s var(--ease-smooth) both;
+}
+.dashboard-view:not(.hidden) {
+  animation: gpFadeUp 0.45s var(--ease-smooth) both;
+}
+@keyframes gpFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Listes dynamiques (contrats, missions, achats) ---------- */
+#listeVentesMarchand > div,
+#listeAchatsSecurises > div,
+#listeCoursesLivreur > div,
+#tableHistorique > tr {
+  animation: gpItemIn 0.4s var(--ease-smooth) both;
+}
+#listeVentesMarchand > div:nth-child(n),
+#listeAchatsSecurises > div:nth-child(n),
+#listeCoursesLivreur > div:nth-child(n) {
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+@keyframes gpItemIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Modal : entrée nette, sortie douce ---------- */
+#customModal { transition: background-color 0.25s ease; }
+#customModal.flex > div {
+  animation: gpModalIn 0.32s var(--ease-snap) both;
+}
+@keyframes gpModalIn {
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ---------- Reçu de déblocage : petit "pop" de succès ---------- */
+#zoneRecuUnique:not(.hidden) {
+  animation: gpPopSuccess 0.5s var(--ease-snap) both;
+}
+@keyframes gpPopSuccess {
+  0%   { opacity: 0; transform: scale(0.9); }
+  60%  { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ---------- Solde livreur : mise en avant douce à chaque mise à jour ---------- */
+#livreurSoldeGains {
+  transition: transform 0.3s var(--ease-snap);
+}
+#livreurSoldeGains.gp-bump {
+  animation: gpBump 0.5s var(--ease-snap);
+}
+@keyframes gpBump {
+  0%   { transform: scale(1); color: #059669; }
+  40%  { transform: scale(1.12); color: #10b981; text-shadow: 0 0 18px rgba(16,185,129,0.35); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- Scanner : halo pulsé pendant l'attente ---------- */
+#scannerZone:not(.hidden) .bg-slate-950 {
+  box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45);
+  animation: gpPulseRing 1.8s ease-out infinite;
+}
+@keyframes gpPulseRing {
+  0%   { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45); }
+  70%  { box-shadow: 0 0 0 14px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+/* ---------- Badges de statut : respiration discrète ---------- */
+.bg-amber-100.text-amber-800,
+.bg-amber-50.text-amber-600 {
+  position: relative;
+}
+
+/* ---------- Squelettes de chargement (optionnel, via classe .gp-skeleton) ---------- */
+.gp-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #eef2f7;
+  border-radius: 10px;
+}
+.gp-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+  animation: gpShimmer 1.4s infinite;
+}
+@keyframes gpShimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* ============================================================
+   Révision : accueil plus chaleureux + logo bien visible partout
+   ============================================================ */
+
+/* ---------- Panneau d'accueil (écran de connexion, colonne gauche) ----------
+   Remplace le fond très sombre par un dégradé plus chaleureux : navy en base,
+   avec une lueur ambrée/terracotta qui réchauffe l'ensemble sans perdre
+   l'identité bleu nuit de la marque. */
+#authSection [class~="bg-gpDark"] {
+  background: radial-gradient(120% 100% at 15% 15%, #b5732a 0%, rgba(181,115,42,0) 55%),
+              radial-gradient(120% 120% at 100% 100%, #d97757 0%, rgba(217,119,87,0) 45%),
+              linear-gradient(160deg, #16233d 0%, #0c1b33 60%, #0a1428 100%);
+}
+
+/* Voile chaud supplémentaire, doux, derrière le contenu */
+#authSection [class~="bg-gpDark"] > div:first-child {
+  background: linear-gradient(160deg, rgba(217,119,87,0.16), rgba(12,27,51,0.55) 55%);
+  opacity: 1;
+}
+
+/* ---------- Logo principal (colonne gauche) : toujours net et lisible ----------
+   Un socle blanc doux fait ressortir le logo quel que soit le fond,
+   sombre ou chaleureux. */
+#authSection [class~="bg-gpDark"] img[alt="GarantiePay Logo"] {
+  background: #ffffff;
+  padding: 16px 26px;
+  border-radius: 22px;
+  box-shadow: 0 14px 34px -10px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.15);
+}
+
+/* ---------- Carte de confiance (photo + avis) : ton réchauffé ---------- */
+#authSection [class~="bg-gpDark"] .bg-white\/10 {
+  background: rgba(255, 236, 217, 0.12);
+  border-color: rgba(255, 236, 217, 0.22);
+}
+
+/* ---------- Logos en filigrane sur les bannières de couleur ----------
+   L'ancien effet (mix-blend-overlay) rendait le logo trop sombre / peu
+   lisible sur les fonds vifs. On le transforme en silhouette blanche
+   douce, nette et discrète, sur les trois bannières (vendeur/acheteur/livreur). */
+.dashboard-view .bg-gradient-to-r img[alt=""] {
+  filter: brightness(0) invert(1);
+  opacity: 0.16;
+  mix-blend-mode: normal;
+}
+
+/* ---------- Petit logo du reçu de déblocage : contraste garanti ---------- */
+#zoneRecuUnique img[alt="GarantiePay"] {
+  filter: none;
+  opacity: 0.85;
+}
+
+/* ---------- Accessibilité : focus clavier visible ---------- */
+button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--gp-blue);
+  outline-offset: 2px;
+}
+
+/* ---------- Respect des préférences de mouvement réduit ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

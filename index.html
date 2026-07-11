@@ -102,6 +102,9 @@
                                 <span class="text-lg mb-1">🛵</span> Livreur
                             </button>
                         </div>
+                        <p id="noteInscriptionMarchand" class="hidden text-[10px] text-slate-400 mt-2 leading-relaxed">
+                            L'inscription est réservée aux vendeurs. Les clients n'ont pas besoin de compte (ils reçoivent un lien), et les livreurs sont ajoutés par leur marchand partenaire.
+                        </p>
                     </div>
 
                     <div class="space-y-3">
@@ -146,6 +149,19 @@
                 <button onclick="fermerReinitialisation()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-sm transition-all">Annuler</button>
                 <button onclick="confirmerReinitialisation()" class="flex-1 py-3 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-md transition-all">Réinitialiser</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ECRAN DE CONFIRMATION CLIENT VIA LIEN (SANS COMPTE) -->
+    <div id="ecranLienClient" class="hidden w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-6 sm:p-10 my-auto max-w-lg mx-auto">
+        <div class="text-center mb-6">
+            <img src="logo.png" alt="EliorPay Logo" class="h-10 w-auto mx-auto mb-4">
+            <h2 class="text-xl font-black text-gpDark tracking-tight">Confirmation de votre achat</h2>
+            <p class="text-slate-500 text-xs mt-1">Aucun compte requis — vérifiez les détails puis confirmez.</p>
+        </div>
+
+        <div id="lienClientContenu">
+            <!-- Rempli dynamiquement par JS -->
         </div>
     </div>
 
@@ -205,6 +221,30 @@
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
                 <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">📜 Vos Contrats et Codes émis</h4>
                 <div id="listeVentesMarchand" class="space-y-3"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">👥 Mes Livreurs Partenaires</h4>
+                    <p class="text-slate-500 text-xs mb-4">Créez un compte pour chaque livreur avec qui vous travaillez régulièrement, puis communiquez-lui son pseudo et son mot de passe.</p>
+                    <div class="space-y-3">
+                        <input type="tel" id="livreurTelephone" placeholder="Téléphone du livreur" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <input type="password" id="livreurMotDePasse" placeholder="Mot de passe à lui communiquer" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <button onclick="creerLivreurPartenaire()" class="w-full py-3.5 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95">
+                            Ajouter ce livreur ➕
+                        </button>
+                    </div>
+                    <div id="listeLivreursMarchand" class="space-y-2 mt-4"></div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">📊 Récapitulatif des Ventes Terminées</h4>
+                    <div id="recapMarchand" class="space-y-2 max-h-80 overflow-y-auto"></div>
+                    <div class="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500">Total encaissé (marchandise + livraison)</span>
+                        <span id="totalRecapMarchand" class="text-lg font-black text-emerald-600">0 FCFA</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -294,6 +334,15 @@
                 <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">🛵 Vos courses actives</h4>
                 <div id="listeCoursesLivreur" class="space-y-3"></div>
             </div>
+
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">📊 Récapitulatif de vos Courses Terminées</h4>
+                <div id="recapLivreur" class="space-y-2 max-h-80 overflow-y-auto"></div>
+                <div class="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-500">Total gagné sur ces courses</span>
+                    <span id="totalRecapLivreur" class="text-lg font-black text-emerald-600">0 FCFA</span>
+                </div>
+            </div>
         </div>
 
         <div id="zoneRecuUnique" class="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-6 text-center hidden">
@@ -327,18 +376,15 @@
 </div>
 
 <footer class="w-full text-center py-6 text-[10px] font-medium text-slate-400">
-    **EliorPay™** est une marque de **Next Genius Growth**.
-🔒 **Technologie de séquestre sécurisé par validation triangulée.**
-
-Transactions protégées, transparence garantie et confiance renforcée entre acheteurs, vendeurs et prestataires.
-
-© 2026 **Next Genius Growth**. Tous droits réservés.
-
-**EliorPay™** et sa technologie de sécurisation des paiements sont protégés par les lois relatives à la propriété intellectuelle. Toute reproduction, imitation, utilisation, modification ou exploitation non autorisée, totale ou partielle, est strictement interdite sans l'autorisation écrite de **Next Genius Growth**.
-
+    **EliorPay™** est une marque de **Next Genius Growth**.🔒 **Technologie de séquestre sécurisé par validation triangulée.**Transactions protégées, transparence garantie et confiance renforcée entre acheteurs, vendeurs et prestataires.© 2026 **Next Genius Growth**. Tous droits réservés.**EliorPay™** et sa technologie de sécurisation des paiements sont protégés par les lois relatives à la propriété intellectuelle. Toute reproduction, imitation, utilisation, modification ou exploitation non autorisée, totale ou partielle, est strictement interdite sans l'autorisation écrite de **Next Genius Growth**.
 </footer>
 
 <script>
+    // ⚠️ A REMPLIR : l'adresse de votre site web hébergé (PAS l'application Android).
+    // Sert à construire les liens client/livreur, qui doivent rester valables même
+    // si le marchand utilise l'application Android pour les générer.
+    const PUBLIC_WEB_BASE_URL = "https://VOTRE-SITE-HEBERGE.com/index.html";
+
     const SUPABASE_URL = "https://qqhubtiyaueeidnobqnn.supabase.co";
     const SUPABASE_KEY = "sb_publishable_Nz0zeitdr0N_y_G_X0bAFg_sj6ByYwf";
     let _supabase = null;
@@ -355,6 +401,7 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
     let currentUser = JSON.parse(sessionStorage.getItem('gp_session')) || null;
     let selectedRole = 'acheteur';
     let modeAuthActuel = 'connexion';
+    let missionTokenEnAttente = null;
 
     async function hacherMotDePasse(motDePasse, sel) {
         const donnees = new TextEncoder().encode(motDePasse + '::' + sel.toLowerCase());
@@ -429,6 +476,9 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
         const inputUsername = document.getElementById('authUsername');
         const btn = document.getElementById('btnActionAuth');
         const lienMdpOublie = document.getElementById('lienMdpOublie');
+        const roleAcheteurBtn = document.getElementById('roleAcheteur');
+        const roleLivreurBtn = document.getElementById('roleLivreur');
+        const noteInscription = document.getElementById('noteInscriptionMarchand');
 
         if (mode === 'connexion') {
             tabConnexion.className = "flex-1 py-2 text-xs font-bold rounded-lg transition-all text-white bg-gpBlue shadow-sm";
@@ -438,6 +488,9 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
             inputUsername.placeholder = "Entrez votre pseudo unique";
             btn.innerHTML = "<span>Se connecter en toute sécurité</span>";
             lienMdpOublie.classList.remove('hidden');
+            roleAcheteurBtn.classList.remove('hidden');
+            roleLivreurBtn.classList.remove('hidden');
+            if (noteInscription) noteInscription.classList.add('hidden');
         } else {
             tabInscription.className = "flex-1 py-2 text-xs font-bold rounded-lg transition-all text-white bg-gpBlue shadow-sm";
             tabConnexion.className = "flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-600";
@@ -445,6 +498,12 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
             inputUsername.classList.add('hidden');
             btn.innerHTML = "<span>Générer mon compte sécurisé ⚡</span>";
             lienMdpOublie.classList.add('hidden');
+            // L'inscription publique est réservée aux vendeurs : le client passe par un
+            // lien (aucun compte requis) et le livreur est créé par son marchand partenaire.
+            choisirRole('marchand');
+            roleAcheteurBtn.classList.add('hidden');
+            roleLivreurBtn.classList.add('hidden');
+            if (noteInscription) noteInscription.classList.remove('hidden');
         }
     }
 
@@ -591,9 +650,38 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
         document.getElementById('appInternalLayout').classList.add('hidden');
     }
 
+    async function copierLienPartage(token, type, btnEl) {
+        const placeholderNonConfigure = PUBLIC_WEB_BASE_URL.includes('VOTRE-SITE-HEBERGE');
+        const base = placeholderNonConfigure ? (window.location.origin + window.location.pathname) : PUBLIC_WEB_BASE_URL;
+        const lien = type === 'client' ? `${base}?client=${token}` : `${base}?mission=${token}`;
+        const estUneVraieAdresseWeb = base.startsWith('http://') || base.startsWith('https://');
+
+        let copieReussie = false;
+        try {
+            await navigator.clipboard.writeText(lien);
+            copieReussie = true;
+        } catch (e) { /* on affichera quand même le lien ci-dessous */ }
+
+        if (placeholderNonConfigure || !estUneVraieAdresseWeb) {
+            showModal(
+                "⚠️ Adresse du site non configurée",
+                `Renseignez PUBLIC_WEB_BASE_URL en haut du fichier index.html avec l'adresse de votre site hébergé, sinon ce lien ne fonctionnera pas pour vos clients.<br><br>Lien généré (exemple) :<br><span class="text-xs font-mono break-all bg-slate-50 px-2 py-1 rounded">${lien}</span>`,
+                "error"
+            );
+            return;
+        }
+
+        showModal(
+            copieReussie ? "🔗 Lien copié !" : "🔗 Voici votre lien",
+            `Partagez ce lien tel quel :<br><br><span class="text-xs font-mono break-all bg-slate-50 px-2 py-1 rounded select-all">${lien}</span>`,
+            "success"
+        );
+    }
+
     function redirectionTableauDeBord() {
         if (!currentUser) return;
         document.getElementById('authSection').classList.add('hidden');
+        document.getElementById('ecranLienClient').classList.add('hidden');
         document.getElementById('appInternalLayout').classList.remove('hidden');
         document.getElementById('userSessionInfo').innerText = `${currentUser.username.toUpperCase()} (${currentUser.role.toUpperCase()})`;
 
@@ -609,6 +697,55 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
         }
 
         fetchEtRenderDonnees();
+
+        // Si l'utilisateur est arrivé via un lien de mission livreur, on l'accepte automatiquement
+        if (missionTokenEnAttente && currentUser.role === 'livreur') {
+            accepterMissionViaLien(missionTokenEnAttente);
+            missionTokenEnAttente = null;
+        }
+    }
+
+    async function accepterMissionViaLien(token) {
+        if (!_supabase) return showModal("Erreur", "Connexion au serveur indisponible.", "error");
+        try {
+            const { error } = await _supabase.rpc('accepter_mission_lien', { p_token: token, p_livreur_id: currentUser.id });
+            if (error) throw error;
+            showModal("Mission Acceptée ! 🛵", "Cette course a été ajoutée à vos courses actives.", "success");
+            fetchEtRenderDonnees();
+        } catch (e) {
+            showModal("Erreur", e.message || "Impossible d'accepter cette mission via ce lien.", "error");
+        }
+    }
+
+    async function creerLivreurPartenaire() {
+        const telephone = document.getElementById('livreurTelephone').value.trim();
+        const motDePasse = document.getElementById('livreurMotDePasse').value.trim();
+
+        if (!telephone) return showModal("Attention", "Veuillez entrer le numéro de téléphone du livreur.", "error");
+        if (!motDePasse || motDePasse.length < 4) return showModal("Attention", "Le mot de passe doit contenir au moins 4 caractères.", "error");
+        if (!_supabase) return showModal("Erreur", "Connexion au serveur indisponible.", "error");
+
+        const hash = await hacherMotDePasse(motDePasse, telephone);
+
+        try {
+            const { data, error } = await _supabase.rpc('creer_livreur', {
+                p_marchand_id: currentUser.id, p_telephone: telephone, p_password_hash: hash
+            });
+            if (error) throw error;
+            const nouveauLivreur = data[0];
+
+            document.getElementById('livreurTelephone').value = '';
+            document.getElementById('livreurMotDePasse').value = '';
+
+            showModal(
+                "Livreur ajouté ✅",
+                `Communiquez ces identifiants à votre livreur :<br><br><b>Pseudo :</b> <span class="bg-blue-50 text-gpBlue px-2 py-1 rounded text-sm font-mono font-bold">${nouveauLivreur.username.toUpperCase()}</span><br><b>Mot de passe :</b> celui que vous venez de choisir.`,
+                "success"
+            );
+            fetchEtRenderDonnees();
+        } catch (e) {
+            showModal("Erreur", e.message || "Impossible de créer ce livreur.", "error");
+        }
     }
 
     async function creerTransactionMarchand() {
@@ -771,6 +908,8 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
         let mesTx = [];
         let allProfiles = [];
         let historiquePublic = [];
+        let monRecap = [];
+        let mesLivreurs = [];
 
         if (_supabase) {
             try {
@@ -780,6 +919,14 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
                 if (profs) allProfiles = profs;
                 const { data: hist } = await _supabase.from('transactions_public').select('*').eq('statut', 'complete').order('created_at', { ascending: false });
                 if (hist) historiquePublic = hist;
+                if (currentUser.role === 'marchand' || currentUser.role === 'livreur') {
+                    const { data: recap } = await _supabase.rpc('historique_utilisateur', { p_user_id: currentUser.id, p_role: currentUser.role });
+                    if (recap) monRecap = recap;
+                }
+                if (currentUser.role === 'marchand') {
+                    const { data: livreurs } = await _supabase.rpc('mes_livreurs', { p_marchand_id: currentUser.id });
+                    if (livreurs) mesLivreurs = livreurs;
+                }
             } catch (e) { console.warn("Lecture Supabase indisponible, données locales utilisées."); }
         }
 
@@ -791,11 +938,13 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
                 (currentUser.role === 'livreur' && lt.livreur_id === currentUser.id);
             if (appartientAMoi && lt.statut !== 'complete' && !mesTx.some(t => t.id === lt.id)) mesTx.unshift(lt);
             if (lt.statut === 'complete' && !historiquePublic.some(t => t.id === lt.id)) historiquePublic.unshift(lt);
+            if (appartientAMoi && lt.statut === 'complete' && !monRecap.some(t => t.id === lt.id)) monRecap.unshift(lt);
         });
         const localUsers = getLocalUsers();
         localUsers.forEach(lu => { if (!allProfiles.some(p => p.id === lu.id)) allProfiles.push(lu); });
 
         const findName = (id) => { const p = allProfiles.find(u => u.id === id); return p ? p.username.toUpperCase() : '⏳ En attente'; };
+
 
         if (currentUser.role === 'marchand') {
             const listeVentes = document.getElementById('listeVentesMarchand');
@@ -810,14 +959,52 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
                                 <span class="bg-slate-200/50 px-2 py-0.5 rounded">📦 Marchandise : ${t.montant_marchandise} F</span>
                                 <span class="bg-slate-200/50 px-2 py-0.5 rounded">🛵 Livraison : ${t.montant_livraison} F</span>
                             </div>
-                            <p class="text-[10px] text-slate-500 mt-1">Client : <mark class="bg-amber-100 font-bold px-1">${findName(t.acheteur_id)}</mark> | Livreur : <mark class="bg-blue-100 font-bold px-1">${findName(t.livreur_id)}</mark></p>
+                            <p class="text-[10px] text-slate-500 mt-1">Client : <mark class="bg-amber-100 font-bold px-1">${t.acheteur_nom ? t.acheteur_nom.toUpperCase() : findName(t.acheteur_id)}</mark> | Livreur : <mark class="bg-blue-100 font-bold px-1">${findName(t.livreur_id)}</mark></p>
                         </div>
-                        <div class="bg-white border-2 border-dashed border-gpBlue rounded-xl p-3 text-center self-start md:self-auto">
-                            <span class="text-[9px] font-bold text-slate-400 uppercase block tracking-widest">CODE À PARTAGER</span>
-                            <span class="text-sm font-black text-gpBlue tracking-wider select-all">${t.share_code}</span>
+                        <div class="flex flex-col gap-1.5 self-start md:self-auto w-full md:w-auto">
+                            <button onclick="copierLienPartage('${t.client_token}', 'client', this)" class="px-3 py-2 bg-white border-2 border-dashed border-gpBlue rounded-xl text-[10px] font-black text-gpBlue uppercase tracking-wide hover:bg-blue-50 transition-all">
+                                🔗 Lien Client
+                            </button>
+                            <button onclick="copierLienPartage('${t.livreur_token}', 'mission', this)" class="px-3 py-2 bg-white border-2 border-dashed border-amber-500 rounded-xl text-[10px] font-black text-amber-600 uppercase tracking-wide hover:bg-amber-50 transition-all">
+                                🔗 Lien Livreur
+                            </button>
+                            <span class="text-[9px] text-slate-400 text-center">ou code manuel : <b class="text-slate-500">${t.share_code}</b></span>
                         </div>
                     </div>
                 `).join('');
+
+            // --- Liste des livreurs partenaires ---
+            const listeLivreurs = document.getElementById('listeLivreursMarchand');
+            listeLivreurs.innerHTML = mesLivreurs.length === 0 ?
+                `<p class='text-slate-400 text-xs text-center py-3'>Aucun livreur ajouté pour le moment.</p>` :
+                mesLivreurs.map(l => `
+                    <div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                        <div>
+                            <span class="text-xs font-bold text-slate-800">${l.username.toUpperCase()}</span>
+                            <span class="text-[10px] text-slate-400 block">${l.telephone}</span>
+                        </div>
+                        <span class="text-xs font-black text-emerald-600">${l.solde_points} FCFA</span>
+                    </div>
+                `).join('');
+
+            // --- Récapitulatif des ventes terminées ---
+            const recapEl = document.getElementById('recapMarchand');
+            let totalRecap = 0;
+            recapEl.innerHTML = monRecap.length === 0 ?
+                `<p class='text-slate-400 text-xs text-center py-4'>Aucune vente terminée pour l'instant.</p>` :
+                monRecap.map(t => {
+                    const total = Number(t.montant_marchandise) + Number(t.montant_livraison);
+                    totalRecap += total;
+                    return `
+                    <div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                        <div>
+                            <span class="text-xs font-bold text-slate-800">${t.nom_article}</span>
+                            <span class="text-[10px] text-slate-400 block">${new Date(t.created_at).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                        <span class="text-xs font-black text-emerald-600">${total} FCFA</span>
+                    </div>`;
+                }).join('');
+            document.getElementById('totalRecapMarchand').innerText = `${totalRecap} FCFA`;
         }
 
         if (currentUser.role === 'acheteur') {
@@ -871,9 +1058,25 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
                         </div>
                     </div>
                 `).join('');
-        }
 
-        const tbody = document.getElementById('tableHistorique');
+            // --- Récapitulatif des courses terminées ---
+            const recapLivreurEl = document.getElementById('recapLivreur');
+            let totalRecapLivreur = 0;
+            recapLivreurEl.innerHTML = monRecap.length === 0 ?
+                `<p class='text-slate-400 text-xs text-center py-4'>Aucune course terminée pour l'instant.</p>` :
+                monRecap.map(t => {
+                    totalRecapLivreur += Number(t.montant_livraison);
+                    return `
+                    <div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                        <div>
+                            <span class="text-xs font-bold text-slate-800">${t.nom_article}</span>
+                            <span class="text-[10px] text-slate-400 block">${new Date(t.created_at).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                        <span class="text-xs font-black text-emerald-600">+${t.montant_livraison} FCFA</span>
+                    </div>`;
+                }).join('');
+            document.getElementById('totalRecapLivreur').innerText = `${totalRecapLivreur} FCFA`;
+        }
         tbody.innerHTML = historiquePublic.length === 0 ?
             `<tr><td colspan='5' class='p-6 text-center text-slate-400 text-xs'>Aucune transaction n'a été archivée publiquement pour le moment.</td></tr>` :
             historiquePublic.map((t, idx) => `
@@ -881,7 +1084,7 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
                     <td class="p-3 font-mono text-[10px] text-slate-400"><mark class="bg-slate-100 rounded px-1">#${t.id.substring(0,8)}</mark></td>
                     <td class="p-3 font-bold text-slate-800">${t.nom_article}</td>
                     <td class="p-3 text-[10px]">
-                        👤 ${findName(t.marchand_id)} ➔ 🛍️ ${findName(t.acheteur_id)}<br>
+                        👤 ${findName(t.marchand_id)} ➔ 🛍️ ${t.acheteur_nom ? t.acheteur_nom.toUpperCase() : findName(t.acheteur_id)}<br>
                         🛵 Livreur : ${findName(t.livreur_id)}
                     </td>
                     <td class="p-3 font-bold text-emerald-600 text-xs">${Number(t.montant_marchandise) + Number(t.montant_livraison)} F</td>
@@ -910,8 +1113,223 @@ Transactions protégées, transparence garantie et confiance renforcée entre ac
                 if (secours) secours.style.display = 'flex';
             };
         }
+
+        // --- Détection d'un lien partagé (client ou mission livreur) ---
+        const params = new URLSearchParams(window.location.search);
+        const tokenClient = params.get('client');
+        const tokenMission = params.get('mission');
+
+        if (tokenClient) {
+            afficherEcranLienClient(tokenClient);
+            return; // écran autonome, pas besoin du reste de l'app
+        }
+
+        if (tokenMission) {
+            missionTokenEnAttente = tokenMission;
+            if (currentUser && currentUser.role === 'livreur') {
+                redirectionTableauDeBord(); // déjà connecté en livreur : acceptation immédiate
+                return;
+            }
+            // Sinon on force le parcours de connexion/inscription sur le rôle Livreur
+            choisirRole('livreur');
+            document.querySelectorAll('.role-btn').forEach(btn => btn.disabled = true);
+            const noteMission = document.createElement('div');
+            noteMission.id = 'apercuMissionLien';
+            noteMission.className = 'text-[11px] text-center text-amber-700 font-bold bg-amber-50 border border-amber-100 rounded-xl py-2 px-3 mt-2';
+            noteMission.innerText = "Connectez-vous (ou créez un compte Livreur) pour accepter cette course.";
+            document.querySelector('.grid.grid-cols-3').insertAdjacentElement('afterend', noteMission);
+
+            if (_supabase) {
+                _supabase.rpc('apercu_livreur', { p_token: tokenMission }).then(({ data, error }) => {
+                    if (!error && data && data[0]) {
+                        const m = data[0];
+                        noteMission.innerHTML = `📦 Course proposée : <b>${m.nom_article}</b> — Gain : <b>${m.montant_livraison} FCFA</b><br><span class="font-normal">Connectez-vous (ou créez un compte Livreur) pour l'accepter.</span>`;
+                    }
+                });
+            }
+        }
+
         if (currentUser) redirectionTableauDeBord();
     };
+
+    // --- ECRAN CLIENT VIA LIEN (SANS COMPTE) ---
+    async function afficherEcranLienClient(token) {
+        document.getElementById('authSection').classList.add('hidden');
+        document.getElementById('ecranLienClient').classList.remove('hidden');
+        const contenu = document.getElementById('lienClientContenu');
+        contenu.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Chargement...</p>`;
+
+        if (!_supabase) {
+            contenu.innerHTML = `<p class="text-center text-rose-500 text-sm py-8">Connexion au serveur indisponible. Vérifiez votre connexion internet et rechargez la page.</p>`;
+            return;
+        }
+        try {
+            const { data, error } = await _supabase.rpc('apercu_client', { p_token: token });
+            if (error) throw error;
+            renderEcranLienClient(data[0], token);
+        } catch (e) {
+            contenu.innerHTML = `<p class="text-center text-rose-500 text-sm py-8">${e.message || 'Lien invalide ou expiré.'}</p>`;
+        }
+    }
+
+    function renderEcranLienClient(tx, token) {
+        const contenu = document.getElementById('lienClientContenu');
+        const total = Number(tx.montant_marchandise) + Number(tx.montant_livraison);
+
+        if (tx.statut === 'initiee') {
+            contenu.innerHTML = `
+                <div class="bg-slate-50 rounded-2xl p-5 mb-4 border border-slate-100">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Article</span>
+                    <span class="font-bold text-slate-800">${tx.nom_article}</span>
+                    <div class="flex justify-between mt-3 pt-3 border-t border-slate-200/60 text-xs font-bold text-slate-500">
+                        <span>📦 Marchandise : ${tx.montant_marchandise} F</span>
+                        <span>🛵 Livraison : ${tx.montant_livraison} F</span>
+                    </div>
+                    <div class="mt-3 text-center">
+                        <span class="text-lg font-black text-gpDark">${total} FCFA</span>
+                    </div>
+                </div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Votre nom (optionnel) :</label>
+                <input type="text" id="lienClientNom" placeholder="Ex: Awa K." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 mb-4">
+                <button onclick="confirmerAchatViaLien('${token}')" class="w-full py-4 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all active:scale-[0.98]">
+                    Confirmer & Bloquer les Fonds 🔒
+                </button>
+                <p class="text-slate-400 text-[10px] text-center mt-3">En confirmant, vos fonds sont mis sous séquestre jusqu'à réception de votre livraison.</p>
+            `;
+            return;
+        }
+
+        // Bandeau de statut + éventuel QR selon l'étape
+        let badgeHtml = '';
+        let qrHtml = '';
+        let actionsHtml = '';
+
+        if (tx.statut === 'fonds_consignes') {
+            badgeHtml = `<span class="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-black uppercase rounded-full">Fonds consignés — Montrez ce code au livreur 🔒</span>`;
+            qrHtml = `
+                <div class="my-4 flex justify-center">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${tx.code_secret_client}" class="border-4 border-white shadow-md rounded-xl" alt="QR Code">
+                </div>
+                <span class="text-sm font-black text-gpBlue block tracking-widest mb-2">${tx.code_secret_client}</span>`;
+            actionsHtml = `
+                <button onclick='telechargerRecu(${JSON.stringify(tx)})' class="w-full mt-4 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md transition-all active:scale-95">
+                    📄 Télécharger mon reçu de consignation
+                </button>
+                <button onclick="ouvrirFormulaireLitige('${token}')" class="w-full mt-2 py-3 bg-white border-2 border-rose-200 hover:bg-rose-50 text-rose-600 font-bold rounded-xl text-sm transition-all">
+                    🚩 Signaler un problème avec cette livraison
+                </button>`;
+        } else if (tx.statut === 'complete') {
+            badgeHtml = `<span class="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase rounded-full">Livraison terminée ✅</span>`;
+            qrHtml = `
+                <div class="my-4 flex justify-center">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${tx.code_secret_client}" class="border-4 border-white shadow-md rounded-xl" alt="QR Code">
+                </div>`;
+            actionsHtml = `
+                <button onclick='telechargerRecu(${JSON.stringify(tx)})' class="w-full mt-4 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md transition-all active:scale-95">
+                    📄 Télécharger mon reçu final
+                </button>`;
+        } else if (tx.statut === 'litige') {
+            badgeHtml = `<span class="inline-block px-3 py-1 bg-rose-100 text-rose-700 text-[10px] font-black uppercase rounded-full">🚩 Litige en cours — en attente du marchand</span>`;
+            actionsHtml = `
+                <p class="text-slate-500 text-xs text-center mt-3">Le marchand a été informé de votre signalement${tx.motif_litige ? ` : « ${tx.motif_litige} »` : ''}. Vos fonds restent bloqués sous séquestre en attendant la résolution.</p>
+                <button onclick='telechargerRecu(${JSON.stringify(tx)})' class="w-full mt-4 py-3 bg-white border-2 border-dashed border-slate-300 hover:bg-slate-50 text-slate-600 font-bold rounded-xl text-sm transition-all">
+                    📄 Télécharger le justificatif du litige
+                </button>`;
+        } else if (tx.statut === 'remboursee') {
+            badgeHtml = `<span class="inline-block px-3 py-1 bg-slate-200 text-slate-700 text-[10px] font-black uppercase rounded-full">💸 Remboursé — transaction annulée</span>`;
+            actionsHtml = `
+                <button onclick='telechargerRecu(${JSON.stringify(tx)})' class="w-full mt-4 py-3.5 bg-slate-600 hover:bg-slate-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95">
+                    📄 Télécharger le reçu d'annulation
+                </button>`;
+        }
+
+        contenu.innerHTML = `
+            <div class="bg-slate-50 rounded-2xl p-5 text-center border border-slate-100">
+                <span class="font-bold text-slate-800 text-sm">${tx.nom_article}</span>
+                ${qrHtml}
+                ${badgeHtml}
+            </div>
+            ${actionsHtml}
+            <p class="text-slate-400 text-[10px] text-center mt-4">Conservez ce lien : il vous permet de revenir consulter cette transaction à tout moment.</p>
+        `;
+    }
+
+    function ouvrirFormulaireLitige(token) {
+        const contenu = document.getElementById('lienClientContenu');
+        contenu.innerHTML = `
+            <div class="bg-rose-50 border border-rose-100 rounded-2xl p-5">
+                <h4 class="text-sm font-black text-rose-700 mb-2">🚩 Signaler un problème</h4>
+                <p class="text-slate-500 text-xs mb-3">Décrivez brièvement le problème (colis non reçu, article non conforme...). Vos fonds resteront bloqués jusqu'à résolution avec le marchand.</p>
+                <textarea id="motifLitige" rows="3" placeholder="Ex : Le livreur n'est jamais venu, ça fait 3 jours..." class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-rose-300 mb-3"></textarea>
+                <div class="flex gap-2">
+                    <button onclick="afficherEcranLienClient('${token}')" class="flex-1 py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl text-sm">Annuler</button>
+                    <button onclick="confirmerLitige('${token}')" class="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm shadow-md">Ouvrir le litige</button>
+                </div>
+            </div>
+        `;
+    }
+
+    async function confirmerLitige(token) {
+        const motif = document.getElementById('motifLitige').value.trim();
+        if (!_supabase) return showModal("Erreur", "Connexion au serveur indisponible.", "error");
+        try {
+            const { data, error } = await _supabase.rpc('ouvrir_litige', { p_token: token, p_motif: motif });
+            if (error) throw error;
+            renderEcranLienClient(data, token);
+        } catch (e) {
+            showModal("Erreur", e.message || "Impossible d'ouvrir ce litige.", "error");
+        }
+    }
+
+    function telechargerRecu(tx) {
+        const total = Number(tx.montant_marchandise) + Number(tx.montant_livraison);
+        const date = new Date().toLocaleDateString('fr-FR');
+        const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<title>Reçu EliorPay - ${tx.nom_article}</title>
+<style>
+  body{font-family:Arial,sans-serif;background:#f8fafc;padding:40px;color:#0c1b33;}
+  .recu{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 10px 30px rgba(0,0,0,0.08);}
+  h1{font-size:20px;margin:0 0 4px;} .sub{color:#64748b;font-size:12px;margin-bottom:24px;}
+  .ligne{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;}
+  .total{font-weight:bold;font-size:18px;color:#059669;margin-top:16px;text-align:right;}
+  .badge{display:inline-block;background:#d1fae5;color:#065f46;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:999px;margin-top:16px;}
+  .footer{margin-top:24px;font-size:10px;color:#94a3b8;text-align:center;}
+</style></head><body>
+  <div class="recu">
+    <h1>Reçu de transaction — EliorPay</h1>
+    <p class="sub">Généré le ${date}</p>
+    <div class="ligne"><span>Article</span><b>${tx.nom_article}</b></div>
+    <div class="ligne"><span>Montant marchandise</span><b>${tx.montant_marchandise} FCFA</b></div>
+    <div class="ligne"><span>Frais de livraison</span><b>${tx.montant_livraison} FCFA</b></div>
+    <div class="ligne"><span>Référence</span><b>#${tx.id.substring(0,8).toUpperCase()}</b></div>
+    <div class="total">Total : ${total} FCFA</div>
+    <div style="text-align:center"><span class="badge">✅ Livraison confirmée et paiement débloqué</span></div>
+    <p class="footer">Ce reçu atteste qu'une transaction triangulée (marchand / client / livreur) a été menée à terme via EliorPay.</p>
+  </div>
+</body></html>`;
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `recu-eliorpay-${tx.id.substring(0,8)}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    async function confirmerAchatViaLien(token) {
+        const nomInput = document.getElementById('lienClientNom');
+        const nom = nomInput ? nomInput.value.trim() : '';
+        if (!_supabase) return showModal("Erreur", "Connexion au serveur indisponible.", "error");
+        try {
+            const { data, error } = await _supabase.rpc('confirmer_achat_lien', { p_token: token, p_nom_client: nom });
+            if (error) throw error;
+            renderEcranLienClient(data, token);
+        } catch (e) {
+            showModal("Erreur", e.message || "Impossible de confirmer cet achat.", "error");
+        }
+    }
 </script>
 </body>
 </html>

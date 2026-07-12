@@ -2,24 +2,18 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>EliorPay - Payez. Vérifiez. Validez.</title>
-    
-    <!-- Support PWA -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EliorPay - Validation Triangulée</title>
+
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="EliorPay">
     <link rel="apple-touch-icon" href="logo.png">
     <link rel="icon" type="image/png" href="logo.png">
 
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- Module de Scanner de QR Code -->
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link rel="stylesheet" href="style.css">
 
     <script>
         tailwind.config = {
@@ -29,7 +23,6 @@
                         gpDark: '#0c1b33',
                         gpBlue: '#2563eb',
                         gpLight: '#f8fafc',
-                        gpGold: '#d97706'
                     }
                 }
             }
@@ -40,78 +33,24 @@
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #f1f5f9; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        
-        @keyframes fadeToast {
-            0% { opacity: 0; transform: translateY(20px); }
-            15% { opacity: 1; transform: translateY(0); }
-            85% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(20px); }
-        }
-        .toast-active { animation: fadeToast 4s forwards ease-in-out; }
+        @keyframes scanLine { 0% { top: 0%; } 50% { top: 100%; } 100% { top: 0%; } }
+        .scan-anim { animation: scanLine 2.5s infinite linear; }
     </style>
 </head>
-<body class="bg-gpLight text-slate-800 font-sans min-h-screen flex flex-col justify-between antialiased pb-safe">
+<body class="bg-gpLight text-slate-800 font-sans min-h-screen flex flex-col justify-between antialiased">
 
-<div class="w-full max-w-5xl mx-auto p-4 flex-grow flex flex-col justify-center">
+<div class="w-full max-w-4xl mx-auto p-4 flex-grow flex flex-col justify-center">
 
-    <!-- SYSTÈME DE TOAST -->
-    <div id="toastContainer" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[70] pointer-events-none w-full max-w-sm px-4"></div>
-
-    <!-- MODAL DE NOTIFICATION -->
-    <div id="customModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] hidden items-center justify-center p-4">
+    <div id="customModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 transform transition-all scale-95 duration-200">
             <div class="flex items-center space-x-3 mb-4">
                 <div id="modalIconContainer" class="w-10 h-10 rounded-full flex items-center justify-center"></div>
                 <h3 id="modalTitle" class="text-lg font-bold text-slate-900">Notification</h3>
             </div>
             <p id="modalMessage" class="text-slate-600 text-sm mb-6 leading-relaxed"></p>
-            <div class="space-y-2">
-                <button id="modalCopyBtn" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl hidden">
-                    📋 Copier le lien de la commande
-                </button>
-                <button id="modalConfirmBtn" class="w-full py-3 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98]">
-                    D'accord, j'ai noté !
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL SCANNER APPAREIL PHOTO -->
-    <div id="modalScannerUI" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[65] hidden flex-col items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-6 relative shadow-2xl">
-            <button onclick="fermerScanner()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-800 font-bold text-3xl leading-none">&times;</button>
-            <div class="text-center mb-4 mt-2">
-                <span class="text-3xl mb-2 block">📷</span>
-                <h3 id="scannerTitle" class="text-xl font-black text-gpDark">Scanner le QR Code</h3>
-                <p class="text-xs text-slate-500 mt-1">Placez le code au centre du cadre</p>
-            </div>
-            
-            <div id="reader" class="w-full min-h-[250px] bg-slate-900 rounded-2xl overflow-hidden shadow-inner border-4 border-slate-100 mb-6"></div>
-            
-            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 text-center">Ou saisie manuelle :</p>
-                <div class="flex gap-2">
-                    <input type="text" id="manualCodeInput" class="flex-1 px-4 py-3 bg-white border border-slate-300 rounded-xl text-center font-bold text-sm outline-none focus:border-gpBlue" placeholder="Entrez le code ici">
-                    <button id="btnManualCodeValidate" class="px-5 py-3 bg-gpDark hover:bg-slate-800 text-white rounded-xl font-bold text-sm shadow-md transition-all active:scale-95">Valider</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ZONE DE RÉINITIALISATION DU MOT DE PASSE -->
-    <div id="zoneReinitialisation" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-40 items-center justify-center p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-            <h3 class="text-lg font-black text-gpDark mb-1">Réinitialiser mon mot de passe</h3>
-            <p class="text-slate-500 text-xs mb-4 leading-relaxed">Entrez votre pseudo et le numéro de téléphone utilisé à l'inscription.</p>
-            <div class="space-y-3">
-                <input type="text" id="resetUsername" placeholder="Votre pseudo (ex: gp-marchand-1234)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none">
-                <input type="tel" id="resetTelephone" placeholder="Numéro de téléphone de l'inscription" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none">
-                <input type="password" id="resetNouveauMdp" placeholder="Nouveau mot de passe" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none">
-            </div>
-            <div class="flex gap-2 mt-4">
-                <button onclick="fermerReinitialisation()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-sm">Annuler</button>
-                <button onclick="confirmerReinitialisation()" class="flex-1 py-3 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-md">Réinitialiser</button>
-            </div>
+            <button id="modalConfirmBtn" class="w-full py-3 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98]">
+                D'accord, j'ai noté !
+            </button>
         </div>
     </div>
 
@@ -120,15 +59,29 @@
             <div class="hidden md:flex md:w-1/2 bg-gpDark items-center justify-center p-12 relative overflow-hidden">
                 <div class="absolute inset-0 bg-gradient-to-tr from-gpDark to-blue-900/50 opacity-90"></div>
                 <div class="relative z-10 text-center text-white">
-                    <img src="logo.png" onerror="this.src='https://placehold.co/180x180/0c1b33/ffffff?text=EliorPay'" alt="EliorPay Logo" class="mx-auto max-h-32 mb-6 drop-shadow-lg">
+                    <img src="logo.png" alt="EliorPay Logo" class="mx-auto max-h-32 mb-6 drop-shadow-lg">
                     <h1 class="text-3xl font-black tracking-tight mb-2">EliorPay</h1>
                     <p class="text-blue-200 text-sm leading-relaxed max-w-xs mx-auto">La confiance absolue pour vos achats, ventes et livraisons par triangulation sécurisée.</p>
+
+                    <!-- Carte de confiance flottante -->
+                    <div class="mt-8 mx-auto max-w-[240px] bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4 flex items-center gap-3 text-left shadow-xl">
+                        <img src="homme-image.jpg" alt="Utilisateur satisfait EliorPay" class="w-14 h-14 rounded-xl object-cover object-top flex-shrink-0 border border-white/20">
+                        <div>
+                            <div class="flex items-center gap-1 text-amber-300 text-xs mb-0.5">★★★★★</div>
+                            <p class="text-[11px] text-blue-100 leading-snug">« Mes fonds sont bloqués jusqu'à la livraison, enfin une transaction sereine. »</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <div class="w-full md:w-1/2 p-6 sm:p-10 flex flex-col justify-center">
                 <div class="text-center mb-6">
+                    <div class="md:hidden flex justify-center mb-4">
+                        <img src="logo.png" alt="EliorPay Logo" class="max-h-16">
+                    </div>
                     <h2 class="text-2xl font-black text-gpDark tracking-tight">Espace Sécurisé</h2>
+                    <p class="text-slate-500 text-xs mt-1">Créez votre compte unique ou connectez-vous</p>
+
                     <div class="flex bg-slate-100 p-1 rounded-xl mt-5 border border-slate-200/50">
                         <button id="tabConnexion" class="flex-1 py-2 text-xs font-bold rounded-lg transition-all text-white bg-gpBlue shadow-sm" onclick="basculerModeAuth('connexion')">Se connecter</button>
                         <button id="tabInscription" class="flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-600" onclick="basculerModeAuth('inscription')">Créer un compte</button>
@@ -136,33 +89,45 @@
                 </div>
 
                 <div class="space-y-4">
-                    <div id="zoneSelecteurRole">
+                    <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Sélectionnez votre profil :</label>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button id="roleMarchand" onclick="choisirRole('marchand')" class="role-btn py-3 px-2 bg-blue-50 border-2 border-gpBlue text-gpBlue rounded-xl font-bold text-xs flex flex-col items-center justify-center transition-all">
+                        <div class="grid grid-cols-3 gap-2">
+                            <button id="roleAcheteur" onclick="choisirRole('acheteur')" class="role-btn py-3 px-2 bg-blue-50 border-2 border-gpBlue text-gpBlue rounded-xl font-bold text-xs flex flex-col items-center justify-center transition-all">
+                                <span class="text-lg mb-1">🛍️</span> Client
+                            </button>
+                            <button id="roleMarchand" onclick="choisirRole('marchand')" class="role-btn py-3 px-2 bg-slate-50 border-2 border-transparent text-slate-600 rounded-xl font-bold text-xs flex flex-col items-center justify-center transition-all">
                                 <span class="text-lg mb-1">🛒</span> Vendeur
                             </button>
-                            <button id="roleLivreur" onclick="choisirRole('livreur')" class="role-btn py-3 px-2 bg-slate-50 text-slate-600 border-2 border-transparent rounded-xl font-bold text-xs flex flex-col items-center justify-center transition-all">
+                            <button id="roleLivreur" onclick="choisirRole('livreur')" class="role-btn py-3 px-2 bg-slate-50 border-2 border-transparent text-slate-600 rounded-xl font-bold text-xs flex flex-col items-center justify-center transition-all">
                                 <span class="text-lg mb-1">🛵</span> Livreur
                             </button>
                         </div>
-                        <p id="noteInscriptionMarchand" class="hidden text-[10px] text-slate-400 mt-2 text-center">Les clients n'ont pas besoin de compte, ils reçoivent un lien de suivi sécurisé.</p>
+                        <p id="noteInscriptionMarchand" class="hidden text-[10px] text-slate-400 mt-2 leading-relaxed">
+                            L'inscription est réservée aux vendeurs. Les clients n'ont pas besoin de compte (ils reçoivent un lien), et les livreurs sont ajoutés par leur marchand partenaire.
+                        </p>
                     </div>
 
                     <div class="space-y-3">
                         <div id="usernameContainer">
-                            <input type="text" id="authUsername" placeholder="Votre pseudo unique" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Pseudo unique :</label>
+                            <input type="text" id="authUsername" placeholder="Ex: gp-client-1234" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-gpBlue outline-none transition-all">
                         </div>
+
                         <div id="zoneTelephoneInscription" class="hidden">
-                            <input type="tel" id="authTelephone" placeholder="Numéro de téléphone" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Numéro de téléphone :</label>
+                            <input type="tel" id="authTelephone" placeholder="Ex: +225 07 00 00 00 00" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-gpBlue outline-none transition-all">
                         </div>
+
                         <div>
-                            <input type="password" id="authPassword" placeholder="Votre mot de passe secret" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none">
-                            <button type="button" onclick="ouvrirReinitialisation()" class="mt-2 text-[11px] font-bold text-gpBlue hover:underline block text-right w-full">Mot de passe oublié ?</button>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Mot de passe secret :</label>
+                            <input type="password" id="authPassword" placeholder="Entrez votre code secret" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-gpBlue outline-none transition-all">
+                            <button type="button" id="lienMdpOublie" onclick="ouvrirReinitialisation()" class="mt-2 text-[11px] font-bold text-gpBlue hover:text-blue-700 hover:underline">
+                                Mot de passe oublié ?
+                            </button>
                         </div>
                     </div>
 
-                    <button id="btnActionAuth" onclick="executerAuthentification()" class="w-full py-4 mt-2 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98]">
+                    <button id="btnActionAuth" onclick="executerAuthentification()" class="w-full py-4 mt-2 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] flex items-center justify-center space-x-2">
                         <span>Se connecter en toute sécurité</span>
                     </button>
                 </div>
@@ -170,156 +135,290 @@
         </div>
     </div>
 
-    <div id="ecranLienClient" class="hidden w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-6 sm:p-8 my-auto max-w-lg mx-auto">
-        <div class="text-center mb-6 border-b border-slate-100 pb-6">
-            <img src="logo.png" onerror="this.src='https://placehold.co/120x120/0c1b33/ffffff?text=EliorPay'" alt="EliorPay Logo" class="h-12 w-auto mx-auto mb-4 filter drop-shadow-md">
-            <h2 class="text-xl font-black text-gpDark tracking-tight">Portail de Livraison Sécurisé</h2>
-            <p class="text-slate-500 text-xs mt-2 bg-slate-50 inline-block px-3 py-1 rounded-full border border-slate-200">Confirmation de votre achat</p>
+    <!-- ZONE DE RÉINITIALISATION DU MOT DE PASSE (masquée par défaut) -->
+    <div id="zoneReinitialisation" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-40 items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <h3 class="text-lg font-black text-gpDark mb-1">Réinitialiser mon mot de passe</h3>
+            <p class="text-slate-500 text-xs mb-4 leading-relaxed">Entrez votre pseudo et le numéro de téléphone utilisé à l'inscription pour choisir un nouveau mot de passe.</p>
+            <div class="space-y-3">
+                <input type="text" id="resetUsername" placeholder="Votre pseudo (ex: gp-client-1234)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                <input type="tel" id="resetTelephone" placeholder="Numéro de téléphone de l'inscription" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                <input type="password" id="resetNouveauMdp" placeholder="Nouveau mot de passe (4 caractères min.)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="fermerReinitialisation()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-sm transition-all">Annuler</button>
+                <button onclick="confirmerReinitialisation()" class="flex-1 py-3 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow-md transition-all">Réinitialiser</button>
+            </div>
         </div>
-        
-        <div id="lienClientContenu" class="space-y-5">
-            <!-- Rempli dynamiquement -->
+    </div>
+
+    <!-- ECRAN DE CONFIRMATION CLIENT VIA LIEN (SANS COMPTE) -->
+    <div id="ecranLienClient" class="hidden w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-6 sm:p-10 my-auto max-w-lg mx-auto">
+        <div class="text-center mb-6">
+            <img src="logo.png" alt="EliorPay Logo" class="h-10 w-auto mx-auto mb-4">
+            <h2 class="text-xl font-black text-gpDark tracking-tight">Confirmation de votre achat</h2>
+            <p class="text-slate-500 text-xs mt-1">Aucun compte requis — vérifiez les détails puis confirmez.</p>
+        </div>
+
+        <div id="lienClientContenu">
+            <!-- Rempli dynamiquement par JS -->
         </div>
     </div>
 
     <div id="appInternalLayout" class="hidden w-full flex-grow flex flex-col space-y-6">
         <header class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <img src="logo.png" onerror="this.src='https://placehold.co/40x40/0c1b33/ffffff?text=EP'" alt="EliorPay Logo" class="h-9 w-auto filter drop-shadow-sm">
+                <img src="logo.png" alt="EliorPay Logo" class="h-9 w-auto">
                 <span class="font-black text-gpDark text-lg tracking-tight">EliorPay</span>
             </div>
             <div class="flex items-center space-x-2">
                 <span id="userSessionInfo" class="px-3 py-1.5 bg-blue-50 text-gpBlue rounded-xl text-xs font-bold border border-blue-100/50"></span>
-                <button onclick="deconnexion()" class="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-all active:scale-95">🔌</button>
+                <button onclick="deconnexion()" class="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-all active:scale-95" title="Se déconnecter">
+                    🔌 Déconnexion
+                </button>
             </div>
         </header>
 
-        <!-- ESPACE VENDEUR -->
         <div id="dashMarchand" class="dashboard-view hidden space-y-6">
-            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg">
-                <span class="text-xs font-bold uppercase tracking-widest text-emerald-100">EliorPay Pro</span>
-                <h3 class="text-2xl font-black mt-1">Espace Vendeur Pro 🛒</h3>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
-                    <span class="text-slate-400 text-xs font-bold uppercase">CA Encaissé</span>
-                    <h3 id="marchandCAEncaisse" class="text-2xl font-black text-emerald-600 mt-2">0 FCFA</h3>
-                </div>
-                <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
-                    <span class="text-slate-400 text-xs font-bold uppercase">Fonds en Séquestre</span>
-                    <h3 id="marchandCASequestre" class="text-2xl font-black text-gpBlue mt-2">0 FCFA</h3>
-                </div>
-                <div class="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm text-center">
-                    <span class="text-slate-400 text-xs font-bold uppercase">Frais Livraison</span>
-                    <h3 id="marchandFraisLivraison" class="text-2xl font-black text-amber-600 mt-2">0 FCFA</h3>
+            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                <img src="logo.png" alt="" aria-hidden="true" class="absolute -right-6 -top-6 w-40 opacity-15 mix-blend-overlay rotate-6 pointer-events-none select-none">
+                <div class="relative z-10">
+                    <span class="text-xs font-bold uppercase tracking-widest text-emerald-100">EliorPay Pro</span>
+                    <h3 class="text-2xl font-black mt-1">Espace Vendeur Pro 🛒</h3>
+                    <p class="text-emerald-100 text-xs mt-2 leading-relaxed">Générez des contrats de vente étanches pour sécuriser vos marchandises avec vos clients et livreurs partenaires.</p>
                 </div>
             </div>
 
-            <!-- NOUVEAU CONTRAT AVEC INFOS CLIENT -->
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                <h4 class="text-sm font-bold text-slate-800 uppercase border-b pb-3 mb-4">📦 Nouveau Contrat Sécurisé</h4>
-                <div class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <input type="text" id="mNomClient" placeholder="Nom du Client" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm">
-                        <input type="tel" id="mTelClient" placeholder="Téléphone du Client" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">📦 Nouveau Contrat Sécurisé</h4>
+                    <div class="space-y-3">
+                        <input type="text" id="mNomCourse" placeholder="Désignation de l'article (ex: Sac à main de luxe)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <input type="number" id="mMontantM" placeholder="Prix de la marchandise (FCFA)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <input type="number" id="mMontantL" placeholder="Frais de livraison (FCFA)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <button onclick="creerTransactionMarchand()" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-md shadow-emerald-500/10 active:scale-95">
+                            Générer le Code Marchand ⚡
+                        </button>
                     </div>
-                    <input type="text" id="mNomCourse" placeholder="Désignation article (ex: Sac à main)" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm">
-                    <div class="grid grid-cols-2 gap-3">
-                        <input type="number" id="mMontantM" placeholder="Prix marchandise (FCFA)" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm">
-                        <input type="number" id="mMontantL" placeholder="Frais livraison (FCFA)" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-sm">
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between">
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">📈 Performance des Ventes</h4>
+                        <p class="text-slate-500 text-xs">Aperçu rapide de l'activité commerciale en temps réel.</p>
                     </div>
-                    <button onclick="creerTransactionMarchand()" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-md active:scale-95">Générer le Contrat ⚡</button>
+                    <div class="mt-6 flex items-end justify-between h-24 pt-4 border-b border-slate-100">
+                        <div class="w-12 bg-emerald-100 rounded-t-lg h-[40%] flex items-end justify-center pb-1"><span class="text-[10px] font-bold text-emerald-600">40%</span></div>
+                        <div class="w-12 bg-emerald-200 rounded-t-lg h-[65%] flex items-end justify-center pb-1"><span class="text-[10px] font-bold text-emerald-700">65%</span></div>
+                        <div class="w-12 bg-emerald-500 rounded-t-lg h-[90%] flex items-end justify-center pb-1"><span class="text-[10px] font-bold text-white">90%</span></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] font-bold text-slate-400 mt-2">
+                        <span>Lundi</span><span>Mardi</span><span>Aujourd'hui</span>
+                    </div>
                 </div>
             </div>
 
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                <h4 class="text-sm font-bold text-slate-800 uppercase border-b pb-3 mb-4">📜 Vos Contrats émis</h4>
+                <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">📜 Vos Contrats et Codes émis</h4>
                 <div id="listeVentesMarchand" class="space-y-3"></div>
             </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">👥 Mes Livreurs Partenaires</h4>
+                    <p class="text-slate-500 text-xs mb-4">Créez un compte pour chaque livreur avec qui vous travaillez régulièrement, puis communiquez-lui son pseudo et son mot de passe.</p>
+                    <div class="space-y-3">
+                        <input type="tel" id="livreurTelephone" placeholder="Téléphone du livreur" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <select id="livreurOperateur" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                            <option value="">Opérateur Mobile Money du livreur…</option>
+                            <option value="orange">Orange Money</option>
+                            <option value="mtn">MTN Mobile Money</option>
+                            <option value="moov">Moov Money</option>
+                            <option value="wave">Wave</option>
+                        </select>
+                        <input type="password" id="livreurMotDePasse" placeholder="Mot de passe à lui communiquer" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <button onclick="creerLivreurPartenaire()" class="w-full py-3.5 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95">
+                            Ajouter ce livreur ➕
+                        </button>
+                    </div>
+                    <div id="listeLivreursMarchand" class="space-y-2 mt-4"></div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">📊 Récapitulatif des Ventes Terminées</h4>
+                    <div id="recapMarchand" class="space-y-2 max-h-80 overflow-y-auto"></div>
+                    <div class="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500">Total encaissé (marchandise + livraison)</span>
+                        <span id="totalRecapMarchand" class="text-lg font-black text-emerald-600">0 FCFA</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- ESPACE LIVREUR -->
+        <div id="dashAcheteur" class="dashboard-view hidden space-y-6">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                <img src="logo.png" alt="" aria-hidden="true" class="absolute -right-6 -top-6 w-40 opacity-15 mix-blend-overlay rotate-6 pointer-events-none select-none">
+                <div class="relative z-10">
+                    <span class="text-xs font-bold uppercase tracking-widest text-blue-100">EliorPay Protect</span>
+                    <h3 class="text-2xl font-black mt-1">Espace Acheteur 🛍️</h3>
+                    <p class="text-blue-100 text-xs mt-2 leading-relaxed">Consignez vos fonds sous séquestre sécurisé. L'argent est bloqué tant que vous n'avez pas inspecté et validé la livraison.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">🔒 Consigner les fonds</h4>
+                    <p class="text-slate-500 text-xs mb-4">Collez le code de transaction reçu du vendeur pour vérifier les prix et bloquer les fonds sous séquestre.</p>
+                    <div class="space-y-3">
+                        <input type="text" id="inputShareCode" placeholder="Code marchand (ex: GP-48291)" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-sm font-bold uppercase tracking-wider outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <button onclick="validerCodeAchatClient()" class="w-full py-3.5 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95">
+                            Vérifier & Bloquer les Fonds 🔒
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">🔑 Vos QR Codes actifs</h4>
+                    <div id="listeAchatsSecurises" class="space-y-3 max-h-80 overflow-y-auto">
+                        <p class="text-slate-400 text-xs text-center py-8">Aucun QR code actif pour le moment. Consignez un achat pour générer votre clé de déblocage.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div id="dashLivreur" class="dashboard-view hidden space-y-6">
-            <div class="bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg">
-                <span class="text-xs font-bold uppercase tracking-widest text-amber-100">EliorPay Express</span>
-                <h3 class="text-2xl font-black mt-1">Espace Livreur 🛵</h3>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-white rounded-2xl p-6 border shadow-sm text-center">
-                    <span class="text-slate-400 text-xs font-bold uppercase mb-2">💰 Solde Gains Cumulé</span>
-                    <h2 id="livreurSoldeGains" class="text-3xl font-black text-emerald-600">0 FCFA</h2>
-                </div>
-                <div class="bg-white rounded-2xl p-6 border shadow-sm text-center">
-                    <span class="text-slate-400 text-xs font-bold uppercase mb-2">📦 Courses Terminées</span>
-                    <h2 id="livreurTotalCourses" class="text-3xl font-black text-gpBlue">0 courses</h2>
+            <div class="bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                <img src="logo.png" alt="" aria-hidden="true" class="absolute -right-6 -top-6 w-40 opacity-15 mix-blend-overlay rotate-6 pointer-events-none select-none">
+                <div class="relative z-10">
+                    <span class="text-xs font-bold uppercase tracking-widest text-amber-100">EliorPay Express</span>
+                    <h3 class="text-2xl font-black mt-1">Espace Livreur Partenaire 🛵</h3>
+                    <p class="text-amber-100 text-xs mt-2 leading-relaxed">Acceptez des livraisons sécurisées et soyez payé instantanément dès le scan du QR Code du client.</p>
                 </div>
             </div>
-            
-            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                <h4 class="text-sm font-bold text-slate-800 uppercase border-b pb-3 mb-4">📋 Accepter une commande</h4>
-                <div class="flex space-x-2">
-                    <input type="text" id="inputLivreurCodeMission" placeholder="Code de la course" class="w-full px-4 py-3 bg-slate-50 border rounded-xl text-center text-sm font-bold uppercase">
-                    <button onclick="validerCodeLivraisonLivreur()" class="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all shadow-md active:scale-95">Valider</button>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">📋 Accepter une commande</h4>
+                    <p class="text-slate-500 text-xs mb-4">Saisissez le code de contrat transmis par le vendeur pour l'attribuer à vos courses.</p>
+                    <div class="space-y-3">
+                        <input type="text" id="inputLivreurCodeMission" placeholder="Entrer le Code Marchand" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-sm font-bold uppercase tracking-wider outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <button onclick="validerCodeLivraisonLivreur()" class="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl transition-all shadow-md active:scale-95">
+                            Prendre en charge la livraison 📦
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between text-center">
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-2">💰 Solde disponible</h4>
+                        <h2 id="livreurSoldeGains" class="text-3xl font-black text-emerald-600 tracking-tight">0 FCFA</h2>
+                        <p class="text-slate-400 text-[10px] mt-1">Crédité automatiquement après chaque livraison réussie.</p>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-50">
+                        <span class="text-xs text-slate-400">Total des courses validées via triangulation</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="scannerZone" class="bg-amber-50 border-2 border-dashed border-amber-300 rounded-3xl p-6 text-center hidden">
+                <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-2">📷 Module de scan optique</h4>
+                <div class="w-36 h-36 mx-auto my-4 bg-slate-950 rounded-2xl border-4 border-amber-400 relative overflow-hidden flex items-center justify-center shadow-lg">
+                    <div class="w-full h-1 bg-rose-500 absolute left-0 scan-anim"></div>
+                    <span class="text-3xl">📱</span>
+                </div>
+                <p id="scanTargetInfo" class="text-slate-700 font-bold text-sm mb-4"></p>
+                <div class="flex flex-col space-y-2">
+                    <button id="btnConfirmerAutoScan" class="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md">
+                        ⚡ Valider le scan & Encaisser les fonds
+                    </button>
+                    <button onclick="annulerScan()" class="w-full py-2 text-slate-500 hover:text-slate-700 font-medium text-xs">
+                        Annuler
+                    </button>
                 </div>
             </div>
 
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                <h4 class="text-sm font-bold text-slate-800 uppercase border-b border-slate-100 pb-3 mb-4">🛵 En cours de livraison</h4>
-                <div id="listeCoursesLivreur" class="space-y-4"></div>
+                <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">🛵 Vos courses actives</h4>
+                <div id="listeCoursesLivreur" class="space-y-3"></div>
             </div>
 
             <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-                <h4 class="text-sm font-bold text-slate-800 uppercase border-b border-slate-100 pb-3 mb-4">✅ Historique des courses</h4>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <tbody id="listeHistoriqueLivreur" class="divide-y divide-slate-100"></tbody>
-                    </table>
+                <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">📊 Récapitulatif de vos Courses Terminées</h4>
+                <div id="recapLivreur" class="space-y-2 max-h-80 overflow-y-auto"></div>
+                <div class="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-500">Total gagné sur ces courses</span>
+                    <span id="totalRecapLivreur" class="text-lg font-black text-emerald-600">0 FCFA</span>
                 </div>
             </div>
         </div>
 
-        <!-- ZONE DE CONFIRMATION & REÇU -->
         <div id="zoneRecuUnique" class="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-6 text-center hidden">
-            <span class="text-3xl block mb-2">🔒</span>
-            <h3 class="text-lg font-black text-emerald-800">Paiement triangulé débloqué</h3>
+            <img src="logo.png" alt="EliorPay" class="h-6 w-auto mx-auto mb-3 opacity-80">
+            <span class="text-3xl">🔒</span>
+            <h3 class="text-lg font-black text-emerald-800 mt-2">Paiement triangulé débloqué</h3>
             <p id="detailsSeparationFonds" class="text-emerald-700 text-xs my-3 leading-relaxed"></p>
-            <div class="flex flex-col sm:flex-row justify-center gap-2 mt-4">
-                <button onclick="genererEtTelechargerRecuPNG()" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
-                    <span class="text-lg">📥</span> Télécharger mon Reçu
-                </button>
-                <button onclick="fermerRecu()" class="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-all">Fermer</button>
+            <button onclick="fermerRecu()" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-all">
+                Fermer & Continuer
+            </button>
+        </div>
+
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 overflow-hidden">
+            <h4 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-3 mb-4">📜 Registre Centralisé Public (Preuves Sécurisées)</h4>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 uppercase tracking-wider font-bold">
+                            <th class="p-3">ID Transaction</th>
+                            <th class="p-3">Désignation</th>
+                            <th class="p-3">Acteurs de triangulation</th>
+                            <th class="p-3">Ventilation étanche</th>
+                            <th class="p-3">État</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableHistorique" class="divide-y divide-slate-100"></tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
+<footer class="w-full text-center py-6 text-[10px] font-medium text-slate-400">
+    🔒 Technologie de séquestre sécurisé de EliorPay par validation triangulée. Tous droits réservés.
+</footer>
+
 <script>
+    // ⚠️ A REMPLIR : l'adresse de votre site web hébergé (PAS l'application Android).
+    // Sert à construire les liens client/livreur, qui doivent rester valables même
+    // si le marchand utilise l'application Android pour les générer.
+    const PUBLIC_WEB_BASE_URL = "https://eliormavericks.github.io/eliorpay/";
+
+    const SUPABASE_URL = "https://qqhubtiyaueeidnobqnn.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_Nz0zeitdr0N_y_G_X0bAFg_sj6ByYwf";
+    const FUNCTIONS_BASE_URL = `${SUPABASE_URL}/functions/v1`;
+    // Passez à true une fois les Edge Functions PayDunya déployées et testées
+    // en sandbox. Tant que c'est false, l'app garde l'ancien comportement
+    // (statuts changés directement, sans vrai paiement).
+    const PAIEMENT_REEL_ACTIF = true;
     let _supabase = null;
     try {
         if (typeof supabase !== 'undefined') {
-            const SUPABASE_URL = "https://wxtzomgslgwyvqyvuxpx.supabase.co"; 
-            const SUPABASE_KEY = "sb_publishable_wWyRMOZ_bVh8nrVBqIXs3Q_F40atwOv";
             _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } else {
+            console.warn("Supabase SDK non chargé. Mode résilience locale actif.");
         }
-    } catch (e) { console.warn("Supabase bypass active - mémoire locale active."); }
+    } catch (e) {
+        console.error("Supabase Client Init Error: ", e);
+    }
 
     let currentUser = JSON.parse(sessionStorage.getItem('gp_session')) || null;
-    let selectedRole = 'marchand'; 
+    let selectedRole = 'acheteur';
     let modeAuthActuel = 'connexion';
-    let currentSelectedTx = null;
-    let allTransactionsLocalCopy = [];
-    let allProfilesLocalCopy = []; // Pour récupérer les infos du livreur
+    let missionTokenEnAttente = null;
 
-    // --- SYSTEME DE TOAST & MODAL ---
-    function showToast(message, type = 'success') {
-        const container = document.getElementById('toastContainer');
-        const toast = document.createElement('div');
-        toast.className = `p-4 rounded-xl shadow-xl text-white font-bold text-xs mb-3 flex items-center justify-between transition-all ${type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'} toast-active`;
-        toast.innerHTML = `<span>${message}</span><button class="ml-3 font-black text-lg" onclick="this.parentElement.remove()">&times;</button>`;
-        container.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
+    async function hacherMotDePasse(motDePasse, sel) {
+        const donnees = new TextEncoder().encode(motDePasse + '::' + sel.toLowerCase());
+        const digest = await crypto.subtle.digest('SHA-256', donnees);
+        return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     function showModal(title, text, type = 'success', onConfirm = null) {
@@ -331,558 +430,1099 @@
 
         mTitle.innerText = title;
         mMessage.innerHTML = text.replace(/\n/g, '<br>');
-        
-        mIcon.className = type === 'success' 
-            ? "w-10 h-10 rounded-full flex items-center justify-center bg-emerald-100 text-emerald-600 font-bold" 
-            : "w-10 h-10 rounded-full flex items-center justify-center bg-rose-100 text-rose-600 font-bold";
-        mIcon.innerHTML = type === 'success' ? "✓" : "✗";
-        
-        mBtn.className = type === 'success'
-            ? "w-full py-3 bg-gpBlue text-white font-bold rounded-xl shadow-lg"
-            : "w-full py-3 bg-rose-500 text-white font-bold rounded-xl shadow-lg";
 
-        modal.classList.remove('hidden'); modal.classList.add('flex');
-        mBtn.onclick = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); if (onConfirm) onConfirm(); };
+        if (type === 'success') {
+            mIcon.className = "w-10 h-10 rounded-full flex items-center justify-center bg-emerald-100 text-emerald-600";
+            mIcon.innerHTML = "✓";
+            mBtn.className = "w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/10 transition-all";
+        } else {
+            mIcon.className = "w-10 h-10 rounded-full flex items-center justify-center bg-rose-100 text-rose-600";
+            mIcon.innerHTML = "✗";
+            mBtn.className = "w-full py-3 bg-rose-500 hover:bg-rose-600 text-white font-bold rounded-xl shadow-lg shadow-rose-500/10 transition-all";
+        }
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        mBtn.onclick = function() {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            if (onConfirm) onConfirm();
+        };
     }
 
-    // --- BASE LOCALE DE SECOURS ---
     function getLocalUsers() { return JSON.parse(localStorage.getItem('gp_local_users')) || []; }
     function saveLocalUser(user) {
         const users = getLocalUsers();
-        if(!users.some(u => u.username === user.username)) { users.push(user); localStorage.setItem('gp_local_users', JSON.stringify(users)); }
+        if (!users.some(u => u.username === user.username)) {
+            users.push(user);
+            localStorage.setItem('gp_local_users', JSON.stringify(users));
+        }
     }
     function getLocalTransactions() { return JSON.parse(localStorage.getItem('gp_local_tx')) || []; }
     function saveLocalTransaction(tx) {
         const transactions = getLocalTransactions();
-        const index = transactions.findIndex(t => t.id === tx.id);
-        if(index !== -1) transactions[index] = tx; else transactions.push(tx);
+        const index = transactions.findIndex(t => t.id === tx.id || t.share_code === tx.share_code);
+        if (index !== -1) transactions[index] = tx; else transactions.push(tx);
         localStorage.setItem('gp_local_tx', JSON.stringify(transactions));
-    }
-
-    function basculerModeAuth(mode) {
-        modeAuthActuel = mode;
-        if (mode === 'connexion') {
-            document.getElementById('tabConnexion').className = "flex-1 py-2 text-xs font-bold rounded-lg text-white bg-gpBlue shadow-sm";
-            document.getElementById('tabInscription').className = "flex-1 py-2 text-xs font-bold rounded-lg text-slate-600";
-            document.getElementById('zoneTelephoneInscription').classList.add('hidden');
-            document.getElementById('zoneSelecteurRole').classList.remove('hidden'); 
-            document.getElementById('authUsername').classList.remove('hidden');
-            document.getElementById('noteInscriptionMarchand').classList.add('hidden');
-            document.getElementById('btnActionAuth').innerHTML = "<span>Se connecter en toute sécurité</span>";
-        } else {
-            document.getElementById('tabInscription').className = "flex-1 py-2 text-xs font-bold rounded-lg text-white bg-gpBlue shadow-sm";
-            document.getElementById('tabConnexion').className = "flex-1 py-2 text-xs font-bold rounded-lg text-slate-600";
-            document.getElementById('zoneTelephoneInscription').classList.remove('hidden');
-            document.getElementById('zoneSelecteurRole').classList.remove('hidden'); // On laisse choisir Marchand ou Livreur
-            document.getElementById('authUsername').classList.add('hidden'); 
-            document.getElementById('noteInscriptionMarchand').classList.remove('hidden');
-            document.getElementById('btnActionAuth').innerHTML = "<span>Créer mon Compte ⚡</span>";
-        }
     }
 
     function choisirRole(role) {
         selectedRole = role;
-        document.querySelectorAll('.role-btn').forEach(b => b.className = "role-btn py-3 px-2 bg-slate-50 text-slate-600 border-2 border-transparent rounded-xl font-bold text-xs flex flex-col items-center justify-center transition-all");
-        const act = document.getElementById('role' + role.charAt(0).toUpperCase() + role.slice(1));
-        if(act) act.className = "role-btn py-3 px-2 bg-blue-50 border-2 border-gpBlue text-gpBlue rounded-xl font-bold text-xs flex flex-col items-center justify-center transition-all";
+        document.querySelectorAll('.role-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-50', 'border-gpBlue', 'text-gpBlue');
+            btn.classList.add('bg-slate-50', 'border-transparent', 'text-slate-600');
+        });
+        const activeBtn = document.getElementById('role' + role.charAt(0).toUpperCase() + role.slice(1));
+        if (activeBtn) {
+            activeBtn.classList.remove('bg-slate-50', 'border-transparent', 'text-slate-600');
+            activeBtn.classList.add('bg-blue-50', 'border-gpBlue', 'text-gpBlue');
+        }
+    }
+
+    function basculerModeAuth(mode) {
+        modeAuthActuel = mode;
+        const tabConnexion = document.getElementById('tabConnexion');
+        const tabInscription = document.getElementById('tabInscription');
+        const zonePhone = document.getElementById('zoneTelephoneInscription');
+        const inputUsername = document.getElementById('authUsername');
+        const btn = document.getElementById('btnActionAuth');
+        const lienMdpOublie = document.getElementById('lienMdpOublie');
+        const roleAcheteurBtn = document.getElementById('roleAcheteur');
+        const roleLivreurBtn = document.getElementById('roleLivreur');
+        const noteInscription = document.getElementById('noteInscriptionMarchand');
+
+        if (mode === 'connexion') {
+            tabConnexion.className = "flex-1 py-2 text-xs font-bold rounded-lg transition-all text-white bg-gpBlue shadow-sm";
+            tabInscription.className = "flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-600";
+            zonePhone.classList.add('hidden');
+            inputUsername.classList.remove('hidden');
+            inputUsername.placeholder = "Entrez votre pseudo unique";
+            btn.innerHTML = "<span>Se connecter en toute sécurité</span>";
+            lienMdpOublie.classList.remove('hidden');
+            roleAcheteurBtn.classList.remove('hidden');
+            roleLivreurBtn.classList.remove('hidden');
+            if (noteInscription) noteInscription.classList.add('hidden');
+        } else {
+            tabInscription.className = "flex-1 py-2 text-xs font-bold rounded-lg transition-all text-white bg-gpBlue shadow-sm";
+            tabConnexion.className = "flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-600";
+            zonePhone.classList.remove('hidden');
+            inputUsername.classList.add('hidden');
+            btn.innerHTML = "<span>Générer mon compte sécurisé ⚡</span>";
+            lienMdpOublie.classList.add('hidden');
+            // L'inscription publique est réservée aux vendeurs : le client passe par un
+            // lien (aucun compte requis) et le livreur est créé par son marchand partenaire.
+            choisirRole('marchand');
+            roleAcheteurBtn.classList.add('hidden');
+            roleLivreurBtn.classList.add('hidden');
+            if (noteInscription) noteInscription.classList.remove('hidden');
+        }
+    }
+
+    // --- MOT DE PASSE OUBLIÉ ---
+    function ouvrirReinitialisation() {
+        document.getElementById('zoneReinitialisation').classList.remove('hidden');
+        document.getElementById('zoneReinitialisation').classList.add('flex');
+    }
+
+    function fermerReinitialisation() {
+        document.getElementById('zoneReinitialisation').classList.add('hidden');
+        document.getElementById('zoneReinitialisation').classList.remove('flex');
+        document.getElementById('resetUsername').value = '';
+        document.getElementById('resetTelephone').value = '';
+        document.getElementById('resetNouveauMdp').value = '';
+    }
+
+    async function confirmerReinitialisation() {
+        const username = document.getElementById('resetUsername').value.trim().toLowerCase();
+        const telephone = document.getElementById('resetTelephone').value.trim();
+        const nouveauMdp = document.getElementById('resetNouveauMdp').value.trim();
+
+        if (!username || !telephone) return showModal("Attention", "Veuillez renseigner votre pseudo et votre numéro de téléphone.", "error");
+        if (!nouveauMdp || nouveauMdp.length < 4) return showModal("Attention", "Le nouveau mot de passe doit contenir au moins 4 caractères.", "error");
+
+        const nouveauHash = await hacherMotDePasse(nouveauMdp, telephone);
+
+        if (!_supabase) {
+            return showModal("Erreur", "Connexion au serveur indisponible. Réessayez avec internet activé.", "error");
+        }
+
+        try {
+            const { error } = await _supabase.rpc('reinitialiser_mot_de_passe', {
+                p_username: username, p_telephone: telephone, p_nouveau_hash: nouveauHash
+            });
+            if (error) throw error;
+
+            // Met aussi à jour la copie locale si elle existe sur cet appareil
+            const localUsers = getLocalUsers();
+            const idx = localUsers.findIndex(u => u.username === username);
+            if (idx !== -1) { localUsers[idx].password_hash = nouveauHash; localStorage.setItem('gp_local_users', JSON.stringify(localUsers)); }
+
+            fermerReinitialisation();
+            showModal("Mot de passe mis à jour ✅", "Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.", "success");
+        } catch (e) {
+            showModal("Erreur", e.message || "Pseudo ou numéro de téléphone incorrect.", "error");
+        }
     }
 
     function executerAuthentification() {
-        if (modeAuthActuel === 'connexion') {
-            const u = document.getElementById('authUsername').value.trim().toLowerCase();
-            const p = document.getElementById('authPassword').value.trim();
-            if(!u || !p) return showModal("Erreur", "Saisissez identifiant et mot de passe.", "error");
-            
-            // Permettre la connexion avec le pseudo peu importe le rôle sélectionné sur le bouton
-            let profile = getLocalUsers().find(x => x.username === u && x.password === p);
-            if(!profile) return showModal("Erreur", "Identifiants incorrects.", "error");
-            
-            currentUser = profile; sessionStorage.setItem('gp_session', JSON.stringify(currentUser)); redirectionTableauDeBord();
-        } else {
-            const t = document.getElementById('authTelephone').value.trim();
-            const p = document.getElementById('authPassword').value.trim();
-            if(!t || p.length < 4) return showModal("Erreur", "Numéro requis et mot de passe (min 4 caractères).", "error");
-            
-            // Génération de l'identifiant selon le rôle
-            const prefix = selectedRole === 'livreur' ? 'livreur' : 'marchand';
-            const newU = `gp-${prefix}-${Math.floor(1000+Math.random()*9000)}`;
-            
-            const profile = { 
-                id: crypto.randomUUID ? crypto.randomUUID() : 'u-'+Math.random(), 
-                username: newU, 
-                role: selectedRole, 
-                telephone: t, 
-                password: p, 
-                solde_points: 0 
-            };
-            
-            saveLocalUser(profile);
-            showModal("Compte Créé ! 🎉", `Notez bien vos identifiants :\n\nPseudo : <b>${newU.toUpperCase()}</b>\nMot de passe : <b>${p}</b>`, "success", () => {
-                currentUser = profile; sessionStorage.setItem('gp_session', JSON.stringify(currentUser)); redirectionTableauDeBord();
-            });
-        }
+        if (modeAuthActuel === 'connexion') connexionUtilisateur();
+        else inscriptionSecurisee();
     }
 
-    function deconnexion() { currentUser = null; sessionStorage.removeItem('gp_session'); window.location.search = ''; }
+    async function inscriptionSecurisee() {
+        const telephone = document.getElementById('authTelephone').value.trim();
+        const password = document.getElementById('authPassword').value.trim();
+
+        if (!telephone) return showModal("Attention", "Le numéro de téléphone est obligatoire pour lier votre compte.", "error");
+        if (!password || password.length < 4) return showModal("Attention", "Veuillez choisir un mot de passe secret de 4 caractères minimum.", "error");
+
+        const hash = await hacherMotDePasse(password, telephone);
+
+        let nouveauProfil = null;
+
+        if (_supabase) {
+            try {
+                const { data, error } = await _supabase.rpc('inscrire_utilisateur', {
+                    p_telephone: telephone, p_password_hash: hash, p_role: selectedRole
+                });
+                if (error) throw error;
+                nouveauProfil = data;
+            } catch (e) {
+                console.warn("Supabase inaccessible, inscription en mode local uniquement:", e.message || e);
+            }
+        }
+
+        if (!nouveauProfil) {
+            const chiffreAleatoire = Math.floor(1000 + Math.random() * 9000);
+            const pseudoGenere = `gp-${selectedRole}-${chiffreAleatoire}`;
+            const nouveauUUID = crypto.randomUUID();
+            nouveauProfil = { id: nouveauUUID, username: pseudoGenere, role: selectedRole, telephone, password_hash: hash, solde_points: 0 };
+        }
+
+        saveLocalUser(nouveauProfil);
+
+        showModal(
+            "Compte créé avec succès ! 🎉",
+            `Voici votre identifiant à conserver précieusement :<br><br><b>Pseudo :</b> <span class="bg-blue-50 text-gpBlue px-2 py-1 rounded text-sm font-mono font-bold">${nouveauProfil.username.toUpperCase()}</span><br><br>Utilisez ce pseudo exact (et votre mot de passe) pour vous reconnecter sur n'importe quel autre téléphone !`,
+            'success',
+            function() {
+                currentUser = nouveauProfil;
+                sessionStorage.setItem('gp_session', JSON.stringify(currentUser));
+                redirectionTableauDeBord();
+            }
+        );
+    }
+
+    async function connexionUtilisateur() {
+        const username = document.getElementById('authUsername').value.trim().toLowerCase();
+        const password = document.getElementById('authPassword').value.trim();
+
+        if (!username) return showModal("Attention", "Veuillez entrer votre pseudo unique.", "error");
+        if (!password) return showModal("Attention", "Veuillez entrer votre mot de passe secret.", "error");
+
+        let profile = null;
+        const localUsers = getLocalUsers();
+        const local = localUsers.find(u => u.username === username);
+        const sel = local ? local.telephone : username;
+        const hash = await hacherMotDePasse(password, sel);
+
+        if (_supabase) {
+            try {
+                const { data, error } = await _supabase.rpc('connecter_utilisateur', {
+                    p_username: username, p_password_hash: hash
+                });
+                if (!error && data && data.length > 0) profile = data[0];
+            } catch (e) {
+                console.warn("Serveur injoignable, bascule sur la mémoire locale du téléphone...");
+            }
+        }
+
+        if (!profile && local && local.password_hash === hash) {
+            profile = local;
+        }
+
+        if (!profile) {
+            return showModal("Erreur", "Pseudo ou mot de passe incorrect. Si vous changez de téléphone, connectez-vous d'abord une fois avec une connexion internet active.", "error");
+        }
+
+        if (profile.role !== selectedRole) {
+            return showModal("Erreur", `Ce compte est enregistré en tant que ${profile.role.toUpperCase()}. Veuillez cocher le bon profil de connexion.`, "error");
+        }
+
+        currentUser = profile;
+        sessionStorage.setItem('gp_session', JSON.stringify(currentUser));
+        redirectionTableauDeBord();
+    }
+
+    function deconnexion() {
+        currentUser = null;
+        sessionStorage.removeItem('gp_session');
+        document.getElementById('authSection').classList.remove('hidden');
+        document.getElementById('appInternalLayout').classList.add('hidden');
+    }
+
+    async function copierLienPartage(token, type, btnEl) {
+        const placeholderNonConfigure = PUBLIC_WEB_BASE_URL.includes('VOTRE-SITE-HEBERGE');
+        const base = placeholderNonConfigure ? (window.location.origin + window.location.pathname) : PUBLIC_WEB_BASE_URL;
+        const lien = type === 'client' ? `${base}?client=${token}` : `${base}?mission=${token}`;
+        const estUneVraieAdresseWeb = base.startsWith('http://') || base.startsWith('https://');
+
+        let copieReussie = false;
+        try {
+            await navigator.clipboard.writeText(lien);
+            copieReussie = true;
+        } catch (e) { /* on affichera quand même le lien ci-dessous */ }
+
+        if (placeholderNonConfigure || !estUneVraieAdresseWeb) {
+            showModal(
+                "⚠️ Adresse du site non configurée",
+                `Renseignez PUBLIC_WEB_BASE_URL en haut du fichier index.html avec l'adresse de votre site hébergé, sinon ce lien ne fonctionnera pas pour vos clients.<br><br>Lien généré (exemple) :<br><span class="text-xs font-mono break-all bg-slate-50 px-2 py-1 rounded">${lien}</span>`,
+                "error"
+            );
+            return;
+        }
+
+        showModal(
+            copieReussie ? "🔗 Lien copié !" : "🔗 Voici votre lien",
+            `Partagez ce lien tel quel :<br><br><span class="text-xs font-mono break-all bg-slate-50 px-2 py-1 rounded select-all">${lien}</span>`,
+            "success"
+        );
+    }
 
     function redirectionTableauDeBord() {
-        if(!currentUser) return;
+        if (!currentUser) return;
         document.getElementById('authSection').classList.add('hidden');
         document.getElementById('ecranLienClient').classList.add('hidden');
         document.getElementById('appInternalLayout').classList.remove('hidden');
-        
-        let roleEmoji = currentUser.role === 'marchand' ? '🛒' : '🛵';
-        document.getElementById('userSessionInfo').innerText = `${roleEmoji} ${currentUser.username.toUpperCase()}`;
-        
-        document.querySelectorAll('.dashboard-view').forEach(e => e.classList.add('hidden'));
-        document.getElementById('dash' + currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)).classList.remove('hidden');
+        document.getElementById('userSessionInfo').innerText = `${currentUser.username.toUpperCase()} (${currentUser.role.toUpperCase()})`;
+
+        document.querySelectorAll('.dashboard-view').forEach(el => el.classList.add('hidden'));
+        const userDash = document.getElementById('dash' + currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1));
+        if (userDash) userDash.classList.remove('hidden');
+
+        if (_supabase) {
+            _supabase
+                .channel('schema-db-changes')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => { fetchEtRenderDonnees(); })
+                .subscribe();
+        }
+
         fetchEtRenderDonnees();
+
+        // Si l'utilisateur est arrivé via un lien de mission livreur, on l'accepte automatiquement
+        if (missionTokenEnAttente && currentUser.role === 'livreur') {
+            accepterMissionViaLien(missionTokenEnAttente);
+            missionTokenEnAttente = null;
+        }
     }
 
-    function creerTransactionMarchand() {
-        const nomClient = document.getElementById('mNomClient').value.trim();
-        const telClient = document.getElementById('mTelClient').value.trim();
-        const nomArticle = document.getElementById('mNomCourse').value.trim();
+    async function accepterMissionViaLien(token) {
+        if (!_supabase) return showModal("Erreur", "Connexion au serveur indisponible.", "error");
+        try {
+            const { error } = await _supabase.rpc('accepter_mission_lien', { p_token: token, p_livreur_id: currentUser.id });
+            if (error) throw error;
+            showModal("Mission Acceptée ! 🛵", "Cette course a été ajoutée à vos courses actives.", "success");
+            fetchEtRenderDonnees();
+        } catch (e) {
+            showModal("Erreur", e.message || "Impossible d'accepter cette mission via ce lien.", "error");
+        }
+    }
+
+    async function creerLivreurPartenaire() {
+        const telephone = document.getElementById('livreurTelephone').value.trim();
+        const motDePasse = document.getElementById('livreurMotDePasse').value.trim();
+        const operateur = document.getElementById('livreurOperateur').value;
+
+        if (!telephone) return showModal("Attention", "Veuillez entrer le numéro de téléphone du livreur.", "error");
+        if (PAIEMENT_REEL_ACTIF && !operateur) return showModal("Attention", "Veuillez indiquer l'opérateur Mobile Money du livreur (nécessaire pour le payer réellement).", "error");
+        if (!motDePasse || motDePasse.length < 4) return showModal("Attention", "Le mot de passe doit contenir au moins 4 caractères.", "error");
+        if (!_supabase) return showModal("Erreur", "Connexion au serveur indisponible.", "error");
+
+        const hash = await hacherMotDePasse(motDePasse, telephone);
+
+        try {
+            const { data, error } = await _supabase.rpc('creer_livreur', {
+                p_marchand_id: currentUser.id, p_telephone: telephone, p_password_hash: hash, p_operateur: operateur || null
+            });
+            if (error) throw error;
+            const nouveauLivreur = data[0];
+
+            document.getElementById('livreurTelephone').value = '';
+            document.getElementById('livreurMotDePasse').value = '';
+            document.getElementById('livreurOperateur').value = '';
+
+            showModal(
+                "Livreur ajouté ✅",
+                `Communiquez ces identifiants à votre livreur :<br><br><b>Pseudo :</b> <span class="bg-blue-50 text-gpBlue px-2 py-1 rounded text-sm font-mono font-bold">${nouveauLivreur.username.toUpperCase()}</span><br><b>Mot de passe :</b> celui que vous venez de choisir.`,
+                "success"
+            );
+            fetchEtRenderDonnees();
+        } catch (e) {
+            showModal("Erreur", e.message || "Impossible de créer ce livreur.", "error");
+        }
+    }
+
+    async function creerTransactionMarchand() {
+        const nom = document.getElementById('mNomCourse').value.trim();
         const mM = parseFloat(document.getElementById('mMontantM').value);
         const mL = parseFloat(document.getElementById('mMontantL').value);
-        
-        if(!nomArticle || isNaN(mM) || isNaN(mL)) return showToast("Informations de l'article invalides", "error");
-        
-        const shareCode = 'EP-' + Math.floor(10000 + Math.random() * 90000);
-        const secretCode = 'QR-' + Math.floor(1000 + Math.random() * 9000);
-        
-        const newTx = { 
-            id: 'tx-'+Math.random(), 
-            share_code: shareCode, 
-            nom_client: nomClient || 'Client non renseigné',
-            tel_client: telClient || 'N/A',
-            nom_article: nomArticle, 
-            montant_marchandise: mM, 
-            montant_livraison: mL, 
-            marchand_id: currentUser.id, 
-            code_secret_client: secretCode, 
-            statut: 'initiee', 
-            created_at: new Date().toISOString() 
-        };
-        
-        saveLocalTransaction(newTx);
-        
-        document.getElementById('mNomClient').value = ''; 
-        document.getElementById('mTelClient').value = '';
-        document.getElementById('mNomCourse').value = ''; 
-        document.getElementById('mMontantM').value = ''; 
-        document.getElementById('mMontantL').value = '';
-        
-        showModal("Contrat Créé ! ⚡", `Lien de suivi généré avec succès.\nCode : <b class="text-xl text-gpBlue">${shareCode}</b>`, "success", fetchEtRenderDonnees);
-    }
 
-    async function verifierEtChargerPortailClient(codeSuivi) {
-        // Chargement des données globales (mock ou supabase)
-        let allTx = getLocalTransactions();
-        let allUsers = getLocalUsers();
-        if (_supabase) { 
-            try { 
-                const { data: txs } = await _supabase.from('transactions').select('*').eq('share_code', codeSuivi).maybeSingle();
-                if (txs) {
-                    allTx = [txs];
-                    if (txs.livreur_id) {
-                        const { data: prof } = await _supabase.from('profiles').select('*').eq('id', txs.livreur_id).single();
-                        if (prof) allUsers.push(prof);
-                    }
-                }
-            } catch (e) {} 
+        if (!nom || isNaN(mM) || isNaN(mL)) {
+            return showModal("Erreur", "Veuillez remplir correctement la désignation et les montants de vente.", "error");
         }
 
-        let tx = allTx.find(t => t.share_code === codeSuivi);
-        if (!tx) return showModal("Introuvable", "Lien de transaction inexistant.", "error");
-        
-        currentSelectedTx = tx;
-        allProfilesLocalCopy = allUsers;
-
-        document.getElementById('authSection').classList.add('hidden');
-        document.getElementById('appInternalLayout').classList.add('hidden');
-        document.getElementById('ecranLienClient').classList.remove('hidden');
-
-        const container = document.getElementById('lienClientContenu');
-        
-        // 1. BLOC : Détails de la course & Montants bien visibles
-        const totalAmount = tx.montant_marchandise + tx.montant_livraison;
-        let htmlContent = `
-            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-5 shadow-inner">
-                <div class="flex justify-between items-center mb-3 border-b border-slate-200 pb-2">
-                    <span class="text-xs font-bold text-slate-500 uppercase">Détails de la course</span>
-                    <span class="text-xs font-mono font-black text-gpBlue bg-blue-50 px-2 py-1 rounded">${tx.share_code}</span>
-                </div>
-                
-                <div class="space-y-2 mb-4">
-                    <div class="flex justify-between items-center"><span class="text-sm text-slate-500">Client:</span> <span class="text-sm font-bold text-slate-800">${tx.nom_client || 'Non renseigné'}</span></div>
-                    <div class="flex justify-between items-center"><span class="text-sm text-slate-500">Article:</span> <span class="text-sm font-bold text-slate-800">${tx.nom_article}</span></div>
-                </div>
-
-                <div class="bg-white border border-slate-100 rounded-xl p-3 space-y-2">
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs text-slate-500">Prix de l'article</span>
-                        <span class="text-base font-black text-slate-800">${tx.montant_marchandise} FCFA</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs text-slate-500">Frais de livraison</span>
-                        <span class="text-base font-black text-slate-800">${tx.montant_livraison} FCFA</span>
-                    </div>
-                    <div class="flex justify-between items-center pt-2 border-t border-slate-100">
-                        <span class="text-sm font-bold text-slate-800">Total à payer</span>
-                        <span class="text-xl font-black text-emerald-600">${totalAmount} FCFA</span>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // 2. BLOC : Info Livreur
-        let infoLivreurHTML = `<div class="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-5 text-center text-amber-700 text-xs font-bold">En attente de l'assignation d'un livreur... ⏳</div>`;
-        if (tx.livreur_id) {
-            let livreur = allProfilesLocalCopy.find(u => u.id === tx.livreur_id);
-            let nomLivreur = livreur ? livreur.username.toUpperCase() : "Livreur Assigné";
-            let telLivreur = livreur && livreur.telephone ? livreur.telephone : "";
-            
-            infoLivreurHTML = `
-                <div class="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-5 flex items-center justify-between">
-                    <div>
-                        <span class="text-[10px] font-bold text-blue-500 uppercase block mb-1">🛵 Livreur assigné</span>
-                        <span class="text-sm font-black text-slate-800 block">${nomLivreur}</span>
-                        ${telLivreur ? `<span class="text-xs font-bold text-slate-500 block mt-1">📞 ${telLivreur}</span>` : ''}
-                    </div>
-                    <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-blue-100 text-xl">
-                        👤
-                    </div>
-                </div>
-            `;
-        }
-        htmlContent += infoLivreurHTML;
-
-        // 3. BLOC : Actions & Carré QR Code
-        if (tx.statut === 'initiee') {
-            htmlContent += `
-                <button onclick="consignerFondsDepuisPortail()" class="w-full py-4 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg transition-all active:scale-95 flex flex-col items-center justify-center gap-1">
-                    <span class="text-lg">🔒 Consigner les fonds</span>
-                    <span class="text-[10px] font-normal opacity-90">Sécuriser ${totalAmount} FCFA sous séquestre</span>
-                </button>
-            `;
-        } else if (tx.statut === 'fonds_consignes') {
-            // Un joli bloc carré pour le QR code
-            htmlContent += `
-                <div class="bg-white border-2 border-slate-200 rounded-3xl p-6 text-center mb-4 shadow-sm relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-full h-1.5 bg-emerald-500"></div>
-                    <span class="text-xs font-black text-emerald-600 uppercase tracking-widest block mb-2">Fonds Sécurisés ✓</span>
-                    <span class="text-xs text-slate-500 block mb-4">Montrez ce carré à votre livreur lors de la réception pour débloquer son paiement.</span>
-                    
-                    <div class="bg-slate-50 inline-block p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${tx.code_secret_client}&color=0c1b33" alt="QR Code Client" class="mx-auto rounded-lg">
-                    </div>
-                    
-                    <div class="bg-slate-100 rounded-xl py-3 px-4 flex justify-between items-center">
-                        <span class="text-xs font-bold text-slate-500">Code Secret :</span>
-                        <span class="text-xl font-black text-slate-900 tracking-widest">${tx.code_secret_client}</span>
-                    </div>
-                </div>
-                
-                <div class="relative flex py-2 items-center">
-                    <div class="flex-grow border-t border-slate-200"></div>
-                    <span class="flex-shrink-0 mx-4 text-slate-400 text-[10px] font-bold uppercase">Ou Scanner le livreur</span>
-                    <div class="flex-grow border-t border-slate-200"></div>
-                </div>
-
-                <button onclick="ouvrirVraiScanner('client', '${tx.id}')" class="w-full py-4 mt-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl shadow-md transition-all flex items-center justify-center gap-2">
-                    <span class="text-xl">📷</span> Ouvrir le Scanner
-                </button>
-            `;
-        } else if (tx.statut === 'complete') {
-            htmlContent += `
-                <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-6 text-center">
-                    <div class="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto text-3xl mb-3 shadow-lg">✓</div>
-                    <h4 class="text-emerald-800 font-black text-lg mb-1">Transaction Clôturée</h4>
-                    <p class="text-emerald-600 text-xs font-bold mb-4">La marchandise a été livrée et les fonds distribués.</p>
-                    <button onclick="genererEtTelechargerRecuPNG()" class="w-full py-3.5 bg-emerald-600 text-white font-bold rounded-xl shadow-md active:scale-95 transition-all">
-                        📥 Télécharger mon Reçu
-                    </button>
-                </div>
-            `;
-        }
-
-        container.innerHTML = htmlContent;
-    }
-
-    async function consignerFondsDepuisPortail() {
-        if (!currentSelectedTx) return;
-        currentSelectedTx.client_valide_code = true;
-        currentSelectedTx.statut = 'fonds_consignes';
-
-        if (_supabase) { try { await _supabase.from('transactions').update(currentSelectedTx).eq('id', currentSelectedTx.id); } catch(e) {} }
-        saveLocalTransaction(currentSelectedTx);
-        showModal("Fonds Consignés 🔒", "Vos fonds sont sécurisés.\nVous pouvez maintenant procéder à l'échange avec le livreur.", "success", function() {
-            verifierEtChargerPortailClient(currentSelectedTx.share_code);
-        });
-    }
-
-    async function fetchEtRenderDonnees() {
-        if(!currentUser) return;
-        let allTx = []; let allProfiles = [];
+        let newTx = null;
         if (_supabase) {
             try {
-                const { data: txs } = await _supabase.from('transactions').select('*').order('created_at', { ascending: false });
-                const { data: profs } = await _supabase.from('profiles').select('*');
-                if(txs) allTx = txs; if(profs) allProfiles = profs;
-            } catch(e) {}
-        }
-        getLocalTransactions().forEach(lt => { if(!allTx.some(t => t.id === lt.id)) allTx.unshift(lt); });
-        getLocalUsers().forEach(lu => { if(!allProfiles.some(p => p.id === lu.id)) allProfiles.push(lu); });
-        
-        allTransactionsLocalCopy = allTx; 
-        allProfilesLocalCopy = allProfiles;
-
-        if(currentUser.role === 'marchand') {
-            const mesTransactions = allTx.filter(t => t.marchand_id === currentUser.id);
-            let caEncaisse = 0; let caSequestre = 0; let fraisLivraison = 0;
-            mesTransactions.forEach(t => {
-                if (t.statut === 'complete') { caEncaisse += t.montant_marchandise; fraisLivraison += t.montant_livraison; }
-                else if (t.statut === 'fonds_consignes') { caSequestre += (t.montant_marchandise + t.montant_livraison); }
-            });
-            document.getElementById('marchandCAEncaisse').innerText = `${caEncaisse} FCFA`;
-            document.getElementById('marchandCASequestre').innerText = `${caSequestre} FCFA`;
-            document.getElementById('marchandFraisLivraison').innerText = `${fraisLivraison} FCFA`;
-
-            const activeVentes = mesTransactions.filter(t => t.statut !== 'complete');
-            document.getElementById('listeVentesMarchand').innerHTML = activeVentes.length === 0 ? 
-                `<p class='text-slate-400 text-xs text-center py-4'>Aucune commande en cours.</p>` : 
-                activeVentes.map(t => {
-                    const trackingLink = `${window.location.origin}${window.location.pathname}?code=${t.share_code}`;
-                    return `
-                        <div class="bg-slate-50 rounded-xl p-4 border flex flex-col gap-3">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <span class="text-[10px] font-black text-slate-400 uppercase">#${t.share_code}</span>
-                                    <span class="font-bold block text-sm">${t.nom_article}</span>
-                                    <span class="text-xs text-slate-500 block">Client: ${t.nom_client || 'N/A'}</span>
-                                </div>
-                                <span class="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded uppercase">${t.statut === 'fonds_consignes' ? 'Sécurisé' : 'En attente'}</span>
-                            </div>
-                            <button onclick="navigator.clipboard.writeText('${trackingLink}'); showToast('Lien copié !');" class="w-full py-2 bg-blue-50 hover:bg-blue-100 text-gpBlue border border-blue-200 text-xs font-bold rounded-lg transition-all">🔗 Copier le lien pour le client</button>
-                        </div>
-                    `;
-                }).join('');
+                const { data, error } = await _supabase.rpc('creer_transaction', {
+                    p_marchand_id: currentUser.id, p_nom: nom, p_montant_m: mM, p_montant_l: mL
+                });
+                if (error) throw error;
+                newTx = data;
+            } catch (e) {
+                console.warn("Supabase offline - écriture locale de secours.", e.message || e);
+            }
         }
 
-        if(currentUser.role === 'livreur') {
-            const mesLivraisons = allTx.filter(t => t.livreur_id === currentUser.id);
-            const terminees = mesLivraisons.filter(t => t.statut === 'complete');
-            const actives = mesLivraisons.filter(t => t.statut !== 'complete');
-            
-            let soldeCumulative = 0; terminees.forEach(t => { soldeCumulative += t.montant_livraison; });
-            document.getElementById('livreurSoldeGains').innerText = `${soldeCumulative} FCFA`;
-            document.getElementById('livreurTotalCourses').innerText = `${terminees.length}`;
-
-            document.getElementById('listeCoursesLivreur').innerHTML = actives.length === 0 ? 
-                `<p class='text-slate-400 text-xs text-center py-4'>Vous n'avez pas de livraison en cours.</p>` : 
-                actives.map(t => `
-                    <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200 shadow-sm">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="font-black text-slate-800 text-lg block">${t.nom_article}</span>
-                            <span class="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] font-bold rounded uppercase">${t.share_code}</span>
-                        </div>
-                        <div class="text-xs text-slate-500 mb-2">Client : <b>${t.nom_client || 'N/A'}</b> ${t.tel_client && t.tel_client !== 'N/A' ? `(📞 ${t.tel_client})` : ''}</div>
-                        <div class="mt-1 mb-4 flex items-center justify-between text-sm border-t border-slate-200 pt-3">
-                            <span class="text-slate-500 font-bold">Gain à récupérer:</span>
-                            <span class="font-black text-emerald-600">+${t.montant_livraison} FCFA</span>
-                        </div>
-                        ${t.client_valide_code ? 
-                            `<div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-200">
-                                <button onclick="showModal('Montrez ceci au Client', '<div class=\\'flex justify-center my-4\\'><img src=\\'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${t.share_code}\\' class=\\'rounded-xl border-4 border-slate-100 shadow-md\\'></div><p class=\\'text-center text-xs font-bold\\'>Votre code : ${t.share_code}</p>', 'success')" class="py-2 bg-blue-50 text-gpBlue font-bold rounded-xl text-[11px] border border-blue-100 flex flex-col items-center">
-                                    <span class="text-xl mb-1">📱</span> Mon QR Code
-                                </button>
-                                <button onclick="ouvrirVraiScanner('livreur', '${t.id}')" class="py-2 bg-slate-900 text-white font-bold rounded-xl text-[11px] flex flex-col items-center shadow-md">
-                                    <span class="text-xl mb-1">📷</span> Scanner le Client
-                                </button>
-                            </div>` : 
-                            `<div class="w-full text-center py-2 bg-amber-50 text-amber-600 text-[11px] rounded-lg font-bold border border-amber-100 mt-2">⏳ Le client n'a pas encore consigné ses fonds.</div>`
-                        }
-                    </div>
-                `).join('');
-
-            document.getElementById('listeHistoriqueLivreur').innerHTML = terminees.length === 0 ?
-                `<tr><td class='p-4 text-center text-slate-400 text-xs'>Aucune course terminée.</td></tr>` :
-                terminees.map(t => `
-                    <tr class="border-b border-slate-50">
-                        <td class="p-3"><span class="font-bold text-slate-800 block">${t.nom_article}</span><span class="text-[10px] text-slate-400">${new Date(t.created_at).toLocaleDateString()} - ${t.nom_client || 'N/A'}</span></td>
-                        <td class="p-3 text-right"><span class="font-black text-emerald-600">+${t.montant_livraison} F</span></td>
-                    </tr>
-                `).join('');
+        if (!newTx) {
+            newTx = {
+                id: crypto.randomUUID(), share_code: 'GP-' + Math.floor(10000 + Math.random() * 90000),
+                code_secret_client: 'QR-' + Math.floor(1000 + Math.random() * 9000), nom_article: nom,
+                montant_marchandise: mM, montant_livraison: mL, marchand_id: currentUser.id, statut: 'initiee',
+                created_at: new Date().toISOString()
+            };
         }
-    }
+        saveLocalTransaction(newTx);
 
-    function validerCodeLivraisonLivreur() {
-        const code = document.getElementById('inputLivreurCodeMission').value.trim().toUpperCase();
-        let tx = getLocalTransactions().find(t => t.share_code === code);
-        if(!tx) return showModal("Erreur", "Code de transaction introuvable.", "error");
-        
-        tx.livreur_id = currentUser.id; 
-        tx.livreur_valide_code = true;
-        saveLocalTransaction(tx);
-        
-        document.getElementById('inputLivreurCodeMission').value = '';
-        showToast("Course affectée avec succès ! 🛵"); 
+        document.getElementById('mNomCourse').value = '';
+        document.getElementById('mMontantM').value = '';
+        document.getElementById('mMontantL').value = '';
+
+        showModal("Succès", `Code de vente généré avec succès !<br>Transmettez ce code à votre acheteur et à votre livreur pour initier la triangulation :<br><br><span class="text-lg font-mono font-bold text-gpBlue tracking-wider bg-blue-50 px-3 py-1 rounded">${newTx.share_code}</span>`, "success");
         fetchEtRenderDonnees();
     }
 
-    let html5QrcodeScannerObj = null;
-    let scanContext = null; 
+    async function validerCodeAchatClient() {
+        const code = document.getElementById('inputShareCode').value.trim().toUpperCase();
+        if (!code) return showModal("Attention", "Veuillez coller le code marchand à valider.", "error");
 
-    function ouvrirVraiScanner(contexte, txId) {
-        scanContext = { type: contexte, txId: txId };
-        document.getElementById('modalScannerUI').classList.remove('hidden');
-        document.getElementById('modalScannerUI').classList.add('flex');
-        
-        document.getElementById('scannerTitle').innerText = contexte === 'livreur' 
-            ? "Scanner le code du Client" 
-            : "Scanner le code du Livreur";
-
-        if (!html5QrcodeScannerObj) {
-            html5QrcodeScannerObj = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 200, height: 200} }, false);
-            html5QrcodeScannerObj.render(onScanSuccess, onScanFailure);
-        }
-        
-        document.getElementById('btnManualCodeValidate').onclick = () => {
-            let code = document.getElementById('manualCodeInput').value.trim().toUpperCase();
-            if(code) onScanSuccess(code);
-        };
-    }
-
-    function fermerScanner() {
-        document.getElementById('modalScannerUI').classList.add('hidden');
-        document.getElementById('modalScannerUI').classList.remove('flex');
-        if (html5QrcodeScannerObj) {
-            html5QrcodeScannerObj.clear().catch(e => console.error(e));
-            html5QrcodeScannerObj = null;
-        }
-        document.getElementById('manualCodeInput').value = '';
-    }
-
-    function onScanSuccess(decodedText) {
-        fermerScanner();
-        let tx = currentSelectedTx || allTransactionsLocalCopy.find(t => t.id === scanContext.txId);
-        if(!tx) return showToast("Erreur de transaction", "error");
-
-        if (scanContext.type === 'livreur') {
-            if (decodedText === tx.code_secret_client) {
-                finaliserTransactionUnique(tx.id);
-            } else {
-                showModal("Code Invalide", "Ce code ne correspond pas au client.", "error");
-            }
-        } else if (scanContext.type === 'client') {
-            if (decodedText === tx.share_code) {
-                finaliserTransactionUnique(tx.id);
-            } else {
-                showModal("Code Invalide", "Ce code ne correspond pas à votre livreur.", "error");
+        let tx = null;
+        if (_supabase) {
+            try {
+                const { data, error } = await _supabase.rpc('consigner_fonds', { p_share_code: code, p_acheteur_id: currentUser.id });
+                if (error) throw error;
+                tx = data;
+            } catch (e) {
+                return showModal("Erreur", e.message || "Code de transaction introuvable ou incorrect.", "error");
             }
         }
-    }
-    function onScanFailure(error) { /* Boucle silencieuse */ }
-
-    async function finaliserTransactionUnique(id) {
-        let tx = getLocalTransactions().find(t => t.id === id);
-        if(!tx) return;
-
-        tx.statut = 'complete';
-        
-        let livreurId = tx.livreur_id;
-        if (livreurId) {
-            const localUsers = getLocalUsers();
-            const lIdx = localUsers.findIndex(u => u.id === livreurId);
-            if(lIdx !== -1) { 
-                localUsers[lIdx].solde_points = (parseFloat(localUsers[lIdx].solde_points) || 0) + parseFloat(tx.montant_livraison); 
-                localStorage.setItem('gp_local_users', JSON.stringify(localUsers)); 
-            }
-            if (currentUser && currentUser.id === livreurId) {
-                currentUser.solde_points = (parseFloat(currentUser.solde_points) || 0) + parseFloat(tx.montant_livraison);
-                sessionStorage.setItem('gp_session', JSON.stringify(currentUser));
-            }
+        if (!tx) {
+            tx = getLocalTransactions().find(t => t.share_code === code);
+            if (!tx) return showModal("Erreur", "Code de transaction introuvable ou incorrect.", "error");
+            tx.acheteur_id = currentUser.id;
+            tx.client_valide_code = true;
+            tx.statut = 'fonds_consignes';
         }
-
         saveLocalTransaction(tx);
-        currentSelectedTx = tx;
+
+        document.getElementById('inputShareCode').value = '';
+        showModal("Fonds Consignés 🔒", `Vos fonds (${Number(tx.montant_marchandise) + Number(tx.montant_livraison)} FCFA) ont été mis sous séquestre sécurisé. Présentez votre QR code au livreur à l'arrivée pour débloquer le paiement.`, "success");
+        fetchEtRenderDonnees();
+    }
+
+    async function validerCodeLivraisonLivreur() {
+        const code = document.getElementById('inputLivreurCodeMission').value.trim().toUpperCase();
+        if (!code) return showModal("Attention", "Veuillez coller le code marchand.", "error");
+
+        let tx = null;
+        if (_supabase) {
+            try {
+                const { data, error } = await _supabase.rpc('accepter_livraison', { p_share_code: code, p_livreur_id: currentUser.id });
+                if (error) throw error;
+                tx = data;
+            } catch (e) {
+                return showModal("Erreur", e.message || "Code marchand introuvable.", "error");
+            }
+        }
+        if (!tx) {
+            tx = getLocalTransactions().find(t => t.share_code === code);
+            if (!tx) return showModal("Erreur", "Code marchand introuvable.", "error");
+            tx.livreur_id = currentUser.id;
+            tx.livreur_valide_code = true;
+        }
+        saveLocalTransaction(tx);
+
+        document.getElementById('inputLivreurCodeMission').value = '';
+        showModal("Mission Acceptée ! 🛵", `Vous avez pris en charge la livraison de : ${tx.nom_article}. Allez récupérer le colis puis effectuez la livraison chez le client.`, "success");
+        fetchEtRenderDonnees();
+    }
+
+    function ouvrirScannerLivreur(id, nom, mL) {
+        document.getElementById('scanTargetInfo').innerText = `Scan de sécurité du Client pour : ${nom} (+${mL} FCFA)`;
+        document.getElementById('scannerZone').classList.remove('hidden');
+        document.getElementById('btnConfirmerAutoScan').onclick = function() { demanderCodeEtFinaliser(id); };
+        window.scrollTo({ top: document.getElementById('scannerZone').offsetTop, behavior: 'smooth' });
+    }
+
+    function annulerScan() { document.getElementById('scannerZone').classList.add('hidden'); }
+
+    function demanderCodeEtFinaliser(id) {
+        const code = prompt("Entrez le code affiché sous le QR du client (ex: QR-1234) :");
+        if (!code) return;
+        finaliserTransactionUnique(id, code.trim().toUpperCase());
+    }
+
+    async function finaliserTransactionUnique(id, codeSecret) {
+        document.getElementById('scannerZone').classList.add('hidden');
+
+        let nouveauSolde = null;
+        let tx = getLocalTransactions().find(t => t.id === id);
+
+        if (PAIEMENT_REEL_ACTIF) {
+            try {
+                const resp = await fetch(`${FUNCTIONS_BASE_URL}/paydunya-disburse-courier`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transaction_id: id, livreur_id: currentUser.id, code_secret: codeSecret })
+                });
+                const result = await resp.json();
+                if (!resp.ok || result.error) throw new Error(result.error || "Le versement a échoué.");
+                nouveauSolde = result.nouveau_solde;
+            } catch (e) {
+                return showModal("Erreur", e.message || "Impossible de finaliser la livraison. Vérifiez le code.", "error");
+            }
+        } else if (_supabase) {
+            try {
+                const { data, error } = await _supabase.rpc('finaliser_livraison', {
+                    p_transaction_id: id, p_livreur_id: currentUser.id, p_code_secret: codeSecret
+                });
+                if (error) throw error;
+                nouveauSolde = data;
+            } catch (e) {
+                return showModal("Erreur", e.message || "Impossible de finaliser la livraison. Vérifiez le code.", "error");
+            }
+        } else if (tx) {
+            if (tx.code_secret_client !== codeSecret) return showModal("Erreur", "Code secret invalide.", "error");
+            nouveauSolde = (parseFloat(currentUser.solde_points) || 0) + parseFloat(tx.montant_livraison);
+        }
+
+        if (nouveauSolde === null) return;
+
+        currentUser.solde_points = nouveauSolde;
+        sessionStorage.setItem('gp_session', JSON.stringify(currentUser));
+        const localUsers = getLocalUsers();
+        const uIdx = localUsers.findIndex(u => u.id === currentUser.id);
+        if (uIdx !== -1) { localUsers[uIdx].solde_points = nouveauSolde; localStorage.setItem('gp_local_users', JSON.stringify(localUsers)); }
+
+        if (tx) { tx.statut = 'complete'; saveLocalTransaction(tx); }
 
         document.getElementById('detailsSeparationFonds').innerHTML = `
-            <b>Livraison validée !</b> Les fonds ont été distribués.<br><br>
-            Le vendeur reçoit <b class="text-emerald-600">+${tx.montant_marchandise} FCFA</b><br>
-            Le livreur reçoit <b class="text-emerald-600">+${tx.montant_livraison} FCFA</b>
+            <b>Statut Triangulaire :</b> Terminé avec succès !<br>
+            <b>Montant Marchandise :</b> Sécurisé et libéré au vendeur.<br>
+            <b>Gain Course :</b> Votre solde a été crédité${tx ? ` de <b class="text-emerald-600">+${tx.montant_livraison} FCFA</b>` : ''}.
         `;
         document.getElementById('zoneRecuUnique').classList.remove('hidden');
         window.scrollTo({ top: document.getElementById('zoneRecuUnique').offsetTop, behavior: 'smooth' });
-        
-        if (!document.getElementById('ecranLienClient').classList.contains('hidden')) {
-            verifierEtChargerPortailClient(tx.share_code);
-        } else {
-            fetchEtRenderDonnees();
-        }
-        showToast("Livraison validée avec succès ! 🎉", "success");
+
+        fetchEtRenderDonnees();
     }
 
     function fermerRecu() { document.getElementById('zoneRecuUnique').classList.add('hidden'); }
 
-    function genererEtTelechargerRecuPNG() {
-        const tx = currentSelectedTx;
-        if (!tx) return;
-        const canvas = document.createElement('canvas');
-        canvas.width = 600; canvas.height = 850; const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#0c1b33'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#1e3a8a'; ctx.fillRect(0, 0, canvas.width, 250);
-        ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(300, 100, 50, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 50px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('✓', 300, 105);
-        ctx.fillStyle = '#ffffff'; ctx.font = '900 45px sans-serif'; ctx.fillText('EliorPay', 300, 190);
-        ctx.font = 'bold 18px sans-serif'; ctx.fillStyle = '#93c5fd'; ctx.fillText('REÇU DE SÉQUESTRE COMPTABLE', 300, 230);
-        
-        ctx.textAlign = 'left'; ctx.textBaseline = 'top'; let y = 290;
-        function drawRow(label, value, isHighlight = false) {
-            ctx.fillStyle = '#94a3b8'; ctx.font = '22px sans-serif'; ctx.fillText(label, 60, y);
-            ctx.textAlign = 'right'; ctx.fillStyle = isHighlight ? '#10b981' : '#ffffff';
-            ctx.font = isHighlight ? '900 28px sans-serif' : 'bold 24px sans-serif'; ctx.fillText(value, 540, y);
-            ctx.textAlign = 'left'; y += 45; ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
-            ctx.beginPath(); ctx.moveTo(60, y); ctx.lineTo(540, y); ctx.stroke(); y += 40;
+    async function fetchEtRenderDonnees() {
+        if (!currentUser) return;
+
+        let mesTx = [];
+        let allProfiles = [];
+        let historiquePublic = [];
+        let monRecap = [];
+        let mesLivreurs = [];
+
+        if (_supabase) {
+            try {
+                const { data: mine } = await _supabase.rpc('mes_transactions', { p_user_id: currentUser.id, p_role: currentUser.role });
+                if (mine) mesTx = mine;
+                const { data: profs } = await _supabase.from('profiles_public').select('*');
+                if (profs) allProfiles = profs;
+                const { data: hist } = await _supabase.from('transactions_public').select('*').eq('statut', 'complete').order('created_at', { ascending: false });
+                if (hist) historiquePublic = hist;
+                if (currentUser.role === 'marchand' || currentUser.role === 'livreur') {
+                    const { data: recap } = await _supabase.rpc('historique_utilisateur', { p_user_id: currentUser.id, p_role: currentUser.role });
+                    if (recap) monRecap = recap;
+                }
+                if (currentUser.role === 'marchand') {
+                    const { data: livreurs } = await _supabase.rpc('mes_livreurs', { p_marchand_id: currentUser.id });
+                    if (livreurs) mesLivreurs = livreurs;
+                }
+            } catch (e) { console.warn("Lecture Supabase indisponible, données locales utilisées."); }
         }
 
-        drawRow('Code de Suivi', tx.share_code);
-        drawRow('Client', tx.nom_client || 'N/A');
-        drawRow('Article Livré', tx.nom_article);
-        drawRow('Valeur', tx.montant_marchandise + ' FCFA');
-        drawRow('Livraison', tx.montant_livraison + ' FCFA');
-        
-        y += 20;
-        ctx.fillStyle = '#2563eb'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(50, y, 500, 80, 15) : ctx.rect(50, y, 500, 80); ctx.fill();
-        ctx.fillStyle = '#93c5fd'; ctx.font = '20px sans-serif'; ctx.fillText('TOTAL PAYÉ', 80, y + 28);
-        ctx.textAlign = 'right'; ctx.fillStyle = '#ffffff'; ctx.font = '900 34px sans-serif'; ctx.fillText((tx.montant_marchandise + tx.montant_livraison) + ' FCFA', 520, y + 22);
+        const localTxs = getLocalTransactions();
+        localTxs.forEach(lt => {
+            const appartientAMoi =
+                (currentUser.role === 'marchand' && lt.marchand_id === currentUser.id) ||
+                (currentUser.role === 'acheteur' && lt.acheteur_id === currentUser.id) ||
+                (currentUser.role === 'livreur' && lt.livreur_id === currentUser.id);
+            if (appartientAMoi && lt.statut !== 'complete' && !mesTx.some(t => t.id === lt.id)) mesTx.unshift(lt);
+            if (lt.statut === 'complete' && !historiquePublic.some(t => t.id === lt.id)) historiquePublic.unshift(lt);
+            if (appartientAMoi && lt.statut === 'complete' && !monRecap.some(t => t.id === lt.id)) monRecap.unshift(lt);
+        });
+        const localUsers = getLocalUsers();
+        localUsers.forEach(lu => { if (!allProfiles.some(p => p.id === lu.id)) allProfiles.push(lu); });
 
-        ctx.textAlign = 'center'; ctx.fillStyle = '#475569'; ctx.font = '16px sans-serif';
-        ctx.fillText('Ce document atteste la clôture sécurisée de la transaction.', 300, canvas.height - 80);
-        ctx.fillText('Date : ' + new Date().toLocaleString('fr-FR'), 300, canvas.height - 50);
+        const findName = (id) => { const p = allProfiles.find(u => u.id === id); return p ? p.username.toUpperCase() : '⏳ En attente'; };
 
-        const link = document.createElement('a');
-        link.download = `Recu_EliorPay_${tx.share_code}.png`;
-        link.href = canvas.toDataURL('image/png'); link.click();
+
+        if (currentUser.role === 'marchand') {
+            const listeVentes = document.getElementById('listeVentesMarchand');
+            listeVentes.innerHTML = mesTx.length === 0 ?
+                `<p class='text-slate-400 text-xs text-center py-4'>Aucun code de contrat marchand actif émis.</p>` :
+                mesTx.map((t, idx) => `
+                    <div style="--i:${idx}" class="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        <div>
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider block">CONTRAT #${t.id.substring(0,6).toUpperCase()}</span>
+                            <span class="font-bold text-slate-800 text-sm">${t.nom_article}</span>
+                            <div class="flex items-center space-x-2 mt-1 text-[10px] font-bold text-slate-500">
+                                <span class="bg-slate-200/50 px-2 py-0.5 rounded">📦 Marchandise : ${t.montant_marchandise} F</span>
+                                <span class="bg-slate-200/50 px-2 py-0.5 rounded">🛵 Livraison : ${t.montant_livraison} F</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-1">Client : <mark class="bg-amber-100 font-bold px-1">${t.acheteur_nom ? t.acheteur_nom.toUpperCase() : findName(t.acheteur_id)}</mark> | Livreur : <mark class="bg-blue-100 font-bold px-1">${findName(t.livreur_id)}</mark></p>
+                        </div>
+                        <div class="flex flex-col gap-1.5 self-start md:self-auto w-full md:w-auto">
+                            <button onclick="copierLienPartage('${t.client_token}', 'client', this)" class="px-3 py-2 bg-white border-2 border-dashed border-gpBlue rounded-xl text-[10px] font-black text-gpBlue uppercase tracking-wide hover:bg-blue-50 transition-all">
+                                🔗 Lien Client
+                            </button>
+                            <button onclick="copierLienPartage('${t.livreur_token}', 'mission', this)" class="px-3 py-2 bg-white border-2 border-dashed border-amber-500 rounded-xl text-[10px] font-black text-amber-600 uppercase tracking-wide hover:bg-amber-50 transition-all">
+                                🔗 Lien Livreur
+                            </button>
+                            <span class="text-[9px] text-slate-400 text-center">ou code manuel : <b class="text-slate-500">${t.share_code}</b></span>
+                        </div>
+                    </div>
+                `).join('');
+
+            // --- Liste des livreurs partenaires ---
+            const listeLivreurs = document.getElementById('listeLivreursMarchand');
+            listeLivreurs.innerHTML = mesLivreurs.length === 0 ?
+                `<p class='text-slate-400 text-xs text-center py-3'>Aucun livreur ajouté pour le moment.</p>` :
+                mesLivreurs.map(l => `
+                    <div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                        <div>
+                            <span class="text-xs font-bold text-slate-800">${l.username.toUpperCase()}</span>
+                            <span class="text-[10px] text-slate-400 block">${l.telephone}</span>
+                        </div>
+                        <span class="text-xs font-black text-emerald-600">${l.solde_points} FCFA</span>
+                    </div>
+                `).join('');
+
+            // --- Récapitulatif des ventes terminées ---
+            const recapEl = document.getElementById('recapMarchand');
+            let totalRecap = 0;
+            recapEl.innerHTML = monRecap.length === 0 ?
+                `<p class='text-slate-400 text-xs text-center py-4'>Aucune vente terminée pour l'instant.</p>` :
+                monRecap.map(t => {
+                    const total = Number(t.montant_marchandise) + Number(t.montant_livraison);
+                    totalRecap += total;
+                    return `
+                    <div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                        <div>
+                            <span class="text-xs font-bold text-slate-800">${t.nom_article}</span>
+                            <span class="text-[10px] text-slate-400 block">${new Date(t.created_at).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                        <span class="text-xs font-black text-emerald-600">${total} FCFA</span>
+                    </div>`;
+                }).join('');
+            document.getElementById('totalRecapMarchand').innerText = `${totalRecap} FCFA`;
+        }
+
+        if (currentUser.role === 'acheteur') {
+            const listeAchats = document.getElementById('listeAchatsSecurises');
+            const actifs = mesTx.filter(t => t.client_valide_code);
+            listeAchats.innerHTML = actifs.length === 0 ?
+                `<p class='text-slate-400 text-xs text-center py-4'>Aucun QR Code actif. Consignez d'abord un achat.</p>` :
+                actifs.map((t, idx) => `
+                    <div style="--i:${idx}" class="bg-slate-50 rounded-2xl p-4 border border-slate-100 text-center">
+                        <span class="text-xs font-bold text-slate-800">${t.nom_article}</span>
+                        <div class="my-3 flex justify-center">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${t.code_secret_client}" class="border-4 border-white shadow-md rounded-xl" alt="QR Code Client">
+                        </div>
+                        <span class="text-xs font-black text-gpBlue block tracking-widest mb-1">${t.code_secret_client}</span>
+                        <span class="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-[9px] font-black uppercase rounded-full">Fonds Consignés sous Séquestre 🔒</span>
+                    </div>
+                `).join('');
+        }
+
+        if (currentUser.role === 'livreur') {
+            const pCur = allProfiles.find(p => p.id === currentUser.id);
+            const monSoldeReel = pCur ? pCur.solde_points : (currentUser.solde_points || 0);
+            const soldeEl = document.getElementById('livreurSoldeGains');
+            const soldeAvant = soldeEl.dataset.solde;
+            soldeEl.innerText = `${monSoldeReel} FCFA`;
+            if (soldeAvant !== undefined && soldeAvant !== String(monSoldeReel)) {
+                soldeEl.classList.remove('gp-bump');
+                void soldeEl.offsetWidth; // force le redémarrage de l'animation
+                soldeEl.classList.add('gp-bump');
+            }
+            soldeEl.dataset.solde = String(monSoldeReel);
+
+            const listeMissions = document.getElementById('listeCoursesLivreur');
+            listeMissions.innerHTML = mesTx.length === 0 ?
+                `<p class='text-slate-400 text-xs text-center py-4'>Aucune course active affectée.</p>` :
+                mesTx.map((t, idx) => `
+                    <div style="--i:${idx}" class="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest block">MISSION EN COURS</span>
+                        <span class="font-bold text-slate-800 text-sm block mt-0.5">${t.nom_article}</span>
+                        <div class="flex items-center justify-between border-t border-slate-200/50 mt-3 pt-3">
+                            <div>
+                                <span class="text-[10px] text-slate-400 block">Gain course</span>
+                                <span class="text-xs font-bold text-emerald-600">+${t.montant_livraison} FCFA</span>
+                            </div>
+                            ${t.client_valide_code ?
+                                `<button onclick="ouvrirScannerLivreur('${t.id}', '${t.nom_article}', ${t.montant_livraison})" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs shadow-md shadow-emerald-500/10 transition-all">
+                                    📷 Flasher QR Client
+                                 </button>` :
+                                `<span class="px-3 py-1 bg-amber-50 text-amber-600 text-[10px] rounded-lg font-bold">⏳ En attente de paiement client</span>`
+                            }
+                        </div>
+                    </div>
+                `).join('');
+
+            // --- Récapitulatif des courses terminées ---
+            const recapLivreurEl = document.getElementById('recapLivreur');
+            let totalRecapLivreur = 0;
+            recapLivreurEl.innerHTML = monRecap.length === 0 ?
+                `<p class='text-slate-400 text-xs text-center py-4'>Aucune course terminée pour l'instant.</p>` :
+                monRecap.map(t => {
+                    totalRecapLivreur += Number(t.montant_livraison);
+                    return `
+                    <div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                        <div>
+                            <span class="text-xs font-bold text-slate-800">${t.nom_article}</span>
+                            <span class="text-[10px] text-slate-400 block">${new Date(t.created_at).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                        <span class="text-xs font-black text-emerald-600">+${t.montant_livraison} FCFA</span>
+                    </div>`;
+                }).join('');
+            document.getElementById('totalRecapLivreur').innerText = `${totalRecapLivreur} FCFA`;
+        }
+        tbody.innerHTML = historiquePublic.length === 0 ?
+            `<tr><td colspan='5' class='p-6 text-center text-slate-400 text-xs'>Aucune transaction n'a été archivée publiquement pour le moment.</td></tr>` :
+            historiquePublic.map((t, idx) => `
+                <tr style="--i:${idx}" class="hover:bg-slate-50 transition-all font-medium text-slate-600">
+                    <td class="p-3 font-mono text-[10px] text-slate-400"><mark class="bg-slate-100 rounded px-1">#${t.id.substring(0,8)}</mark></td>
+                    <td class="p-3 font-bold text-slate-800">${t.nom_article}</td>
+                    <td class="p-3 text-[10px]">
+                        👤 ${findName(t.marchand_id)} ➔ 🛍️ ${t.acheteur_nom ? t.acheteur_nom.toUpperCase() : findName(t.acheteur_id)}<br>
+                        🛵 Livreur : ${findName(t.livreur_id)}
+                    </td>
+                    <td class="p-3 font-bold text-emerald-600 text-xs">${Number(t.montant_marchandise) + Number(t.montant_livraison)} F</td>
+                    <td class="p-3">
+                        <span class="inline-flex px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase rounded">Succès Triangulé</span>
+                    </td>
+                </tr>
+            `).join('');
     }
 
-    // Réinitialisation MDP
-    function ouvrirReinitialisation() { document.getElementById('zoneReinitialisation').classList.remove('hidden'); document.getElementById('zoneReinitialisation').classList.add('flex'); }
-    function fermerReinitialisation() { document.getElementById('zoneReinitialisation').classList.add('hidden'); document.getElementById('zoneReinitialisation').classList.remove('flex'); }
-    function confirmerReinitialisation() {
-        const u = document.getElementById('resetUsername').value.trim().toLowerCase();
-        const t = document.getElementById('resetTelephone').value.trim();
-        const n = document.getElementById('resetNouveauMdp').value.trim();
-        const users = getLocalUsers(); const idx = users.findIndex(x => x.username === u && x.telephone === t);
-        if(idx !== -1 && n.length >= 4) { users[idx].password = n; localStorage.setItem('gp_local_users', JSON.stringify(users)); fermerReinitialisation(); showToast("Mot de passe réinitialisé."); } else { showToast("Erreur d'identifiants.", "error"); }
-    }
+    // Effet "ripple" : positionne le halo au point de clic exact
+    document.addEventListener('pointerdown', function(e) {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const rect = btn.getBoundingClientRect();
+        btn.style.setProperty('--rx', ((e.clientX - rect.left) / rect.width * 100) + '%');
+        btn.style.setProperty('--ry', ((e.clientY - rect.top) / rect.height * 100) + '%');
+    });
 
     window.onload = function () {
-        const code = new URLSearchParams(window.location.search).get('code');
-        if (code) verifierEtChargerPortailClient(code.toUpperCase());
-        else if(currentUser) redirectionTableauDeBord();
+        const logo = document.querySelector('img[alt="EliorPay Logo"]');
+        if (logo) {
+            logo.onerror = function() {
+                this.style.display = 'none';
+                const secours = document.getElementById('logoSecours');
+                if (secours) secours.style.display = 'flex';
+            };
+        }
+
+        // --- Détection d'un lien partagé (client ou mission livreur) ---
+        const params = new URLSearchParams(window.location.search);
+        const tokenClient = params.get('client');
+        const tokenMission = params.get('mission');
+        const retourPaiement = params.get('paiement');
+        const paydunyaToken = params.get('token');
+
+        if (tokenClient) {
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('ecranLienClient').classList.remove('hidden');
+            if (retourPaiement === 'retour' && paydunyaToken) {
+                verifierRetourPaiement(tokenClient, paydunyaToken);
+            } else {
+                afficherEcranLienClient(tokenClient);
+            }
+            return; // écran autonome, pas besoin du reste de l'app
+        }
+
+        if (tokenMission) {
+            missionTokenEnAttente = tokenMission;
+            if (currentUser && currentUser.role === 'livreur') {
+                redirectionTableauDeBord(); // déjà connecté en livreur : acceptation immédiate
+                return;
+            }
+            // Sinon on force le parcours de connexion/inscription sur le rôle Livreur
+            choisirRole('livreur');
+            document.querySelectorAll('.role-btn').forEach(btn => btn.disabled = true);
+            const noteMission = document.createElement('div');
+            noteMission.id = 'apercuMissionLien';
+            noteMission.className = 'bg-amber-50 border border-amber-100 rounded-2xl p-4 mt-2 text-center';
+            noteMission.innerHTML = `<p class="text-[11px] font-bold text-amber-700">Connectez-vous (ou créez un compte Livreur) pour accepter cette course.</p>`;
+            document.querySelector('.grid.grid-cols-3').insertAdjacentElement('afterend', noteMission);
+
+            if (_supabase) {
+                _supabase.rpc('apercu_livreur', { p_token: tokenMission }).then(({ data, error }) => {
+                    if (!error && data && data[0]) {
+                        const m = data[0];
+                        noteMission.innerHTML = `
+                            <div class="my-2 flex justify-center">
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=MISSION-${m.id.substring(0,8).toUpperCase()}" class="border-4 border-white shadow-md rounded-xl" alt="Référence de la course">
+                            </div>
+                            <span class="text-[9px] font-black text-amber-500 uppercase tracking-widest block">Référence #${m.id.substring(0,8).toUpperCase()}</span>
+                            <p class="text-sm font-bold text-slate-800 mt-1">📦 ${m.nom_article}</p>
+                            <p class="text-xs font-black text-emerald-600 mt-0.5">Gain estimé : ${m.montant_livraison} FCFA</p>
+                            <p class="text-[11px] text-amber-700 font-bold mt-2">Connectez-vous (ou créez un compte Livreur) pour l'accepter.</p>
+                            <p class="text-[10px] text-slate-400 mt-1">Le code secret de déblocage vous sera montré en personne par le client à la livraison.</p>
+                        `;
+                    }
+                });
+            }
+        }
+
+        if (currentUser) redirectionTableauDeBord();
     };
+
+    // --- ECRAN CLIENT VIA LIEN (SANS COMPTE) ---
+    async function afficherEcranLienClient(token) {
+        document.getElementById('authSection').classList.add('hidden');
+        document.getElementById('ecranLienClient').classList.remove('hidden');
+        const contenu = document.getElementById('lienClientContenu');
+        contenu.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Chargement...</p>`;
+
+        if (!_supabase) {
+            contenu.innerHTML = `<p class="text-center text-rose-500 text-sm py-8">Connexion au serveur indisponible. Vérifiez votre connexion internet et rechargez la page.</p>`;
+            return;
+        }
+        try {
+            const { data, error } = await _supabase.rpc('apercu_client', { p_token: token });
+            if (error) throw error;
+            renderEcranLienClient(data[0], token);
+        } catch (e) {
+            contenu.innerHTML = `<p class="text-center text-rose-500 text-sm py-8">${e.message || 'Lien invalide ou expiré.'}</p>`;
+        }
+    }
+
+    function renderEcranLienClient(tx, token) {
+        const contenu = document.getElementById('lienClientContenu');
+        const total = Number(tx.montant_marchandise) + Number(tx.montant_livraison);
+
+        const detailsMontants = `
+            <div class="flex justify-between mt-3 pt-3 border-t border-slate-200/60 text-xs font-bold text-slate-500">
+                <span>📦 Marchandise : ${tx.montant_marchandise} F</span>
+                <span>🛵 Livraison : ${tx.montant_livraison} F</span>
+            </div>
+            <div class="mt-3 text-center">
+                <span class="text-lg font-black text-gpDark">${total} FCFA</span>
+            </div>`;
+
+        if (tx.statut === 'initiee') {
+            contenu.innerHTML = `
+                <div class="bg-slate-50 rounded-2xl p-5 mb-4 border border-slate-100">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Article</span>
+                    <span class="font-bold text-slate-800">${tx.nom_article}</span>
+                    ${detailsMontants}
+                </div>
+                <label class="block text-xs font-bold text-slate-500 mb-1">Votre nom :</label>
+                <input type="text" id="lienClientNom" placeholder="Ex: Awa K." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 mb-3">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Votre numéro de téléphone :</label>
+                <input type="tel" id="lienClientTelephone" placeholder="Ex: 07 00 00 00 00" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 mb-4">
+                <button onclick="confirmerAchatViaLien('${token}')" class="w-full py-4 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all active:scale-[0.98]">
+                    Confirmer & Bloquer les Fonds 🔒
+                </button>
+                <p class="text-slate-400 text-[10px] text-center mt-3">En confirmant, vos fonds sont mis sous séquestre jusqu'à réception de votre livraison.</p>
+            `;
+            return;
+        }
+
+        // Bandeau de statut + éventuel QR selon l'étape
+        let badgeHtml = '';
+        let qrHtml = '';
+        let actionsHtml = '';
+
+        const blocLivreur = tx.livreur_nom ? `
+            <div class="bg-blue-50 rounded-xl p-3 mt-3 text-left">
+                <span class="text-[10px] font-black text-blue-400 uppercase tracking-wider block">Livreur assigné</span>
+                <span class="text-sm font-bold text-gpDark">🛵 ${tx.livreur_nom.toUpperCase()}</span>
+            </div>` : `
+            <p class="text-slate-400 text-[10px] text-center mt-3">⏳ En attente qu'un livreur prenne en charge votre course.</p>`;
+
+        if (tx.statut === 'fonds_consignes') {
+            badgeHtml = `<span class="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-black uppercase rounded-full">Fonds consignés — Montrez ce code au livreur 🔒</span>`;
+            qrHtml = `
+                <div class="my-4 flex justify-center">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${tx.code_secret_client}" class="border-4 border-white shadow-md rounded-xl" alt="QR Code">
+                </div>
+                <span class="text-sm font-black text-gpBlue block tracking-widest mb-2">${tx.code_secret_client}</span>`;
+            actionsHtml = `
+                ${blocLivreur}
+                <button onclick='telechargerRecu(${JSON.stringify(tx)})' class="w-full mt-4 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md transition-all active:scale-95">
+                    📄 Télécharger mon reçu de consignation
+                </button>
+                <button onclick="ouvrirFormulaireLitige('${token}')" class="w-full mt-2 py-3 bg-white border-2 border-rose-200 hover:bg-rose-50 text-rose-600 font-bold rounded-xl text-sm transition-all">
+                    🚩 Signaler un problème avec cette livraison
+                </button>`;
+        } else if (tx.statut === 'complete') {
+            badgeHtml = `<span class="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase rounded-full">Livraison terminée ✅</span>`;
+            qrHtml = `
+                <div class="my-4 flex justify-center">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${tx.code_secret_client}" class="border-4 border-white shadow-md rounded-xl" alt="QR Code">
+                </div>`;
+            actionsHtml = `
+                ${blocLivreur}
+                <button onclick='telechargerRecu(${JSON.stringify(tx)})' class="w-full mt-4 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md transition-all active:scale-95">
+                    📄 Télécharger mon reçu final
+                </button>`;
+        } else if (tx.statut === 'litige') {
+            badgeHtml = `<span class="inline-block px-3 py-1 bg-rose-100 text-rose-700 text-[10px] font-black uppercase rounded-full">🚩 Litige en cours — en attente du marchand</span>`;
+            actionsHtml = `
+                <p class="text-slate-500 text-xs text-center mt-3">Le marchand a été informé de votre signalement${tx.motif_litige ? ` : « ${tx.motif_litige} »` : ''}. Vos fonds restent bloqués sous séquestre en attendant la résolution.</p>
+                <button onclick='telechargerRecu(${JSON.stringify(tx)})' class="w-full mt-4 py-3 bg-white border-2 border-dashed border-slate-300 hover:bg-slate-50 text-slate-600 font-bold rounded-xl text-sm transition-all">
+                    📄 Télécharger le justificatif du litige
+                </button>`;
+        } else if (tx.statut === 'remboursee') {
+            badgeHtml = `<span class="inline-block px-3 py-1 bg-slate-200 text-slate-700 text-[10px] font-black uppercase rounded-full">💸 Remboursé — transaction annulée</span>`;
+            actionsHtml = `
+                <button onclick='telechargerRecu(${JSON.stringify(tx)})' class="w-full mt-4 py-3.5 bg-slate-600 hover:bg-slate-700 text-white font-bold rounded-xl shadow-md transition-all active:scale-95">
+                    📄 Télécharger le reçu d'annulation
+                </button>`;
+        }
+
+        contenu.innerHTML = `
+            <div class="bg-slate-50 rounded-2xl p-5 text-center border border-slate-100">
+                <span class="font-bold text-slate-800 text-sm">${tx.nom_article}</span>
+                ${detailsMontants}
+                ${qrHtml}
+                ${badgeHtml}
+            </div>
+            ${actionsHtml}
+            <p class="text-slate-400 text-[10px] text-center mt-4">Conservez ce lien : il vous permet de revenir consulter cette transaction à tout moment.</p>
+        `;
+    }
+
+    function ouvrirFormulaireLitige(token) {
+        const contenu = document.getElementById('lienClientContenu');
+        contenu.innerHTML = `
+            <div class="bg-rose-50 border border-rose-100 rounded-2xl p-5">
+                <h4 class="text-sm font-black text-rose-700 mb-2">🚩 Signaler un problème</h4>
+                <p class="text-slate-500 text-xs mb-3">Décrivez brièvement le problème (colis non reçu, article non conforme...). Vos fonds resteront bloqués jusqu'à résolution avec le marchand.</p>
+                <textarea id="motifLitige" rows="3" placeholder="Ex : Le livreur n'est jamais venu, ça fait 3 jours..." class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-rose-300 mb-3"></textarea>
+                <div class="flex gap-2">
+                    <button onclick="afficherEcranLienClient('${token}')" class="flex-1 py-3 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl text-sm">Annuler</button>
+                    <button onclick="confirmerLitige('${token}')" class="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm shadow-md">Ouvrir le litige</button>
+                </div>
+            </div>
+        `;
+    }
+
+    async function confirmerLitige(token) {
+        const motif = document.getElementById('motifLitige').value.trim();
+        if (!_supabase) return showModal("Erreur", "Connexion au serveur indisponible.", "error");
+        try {
+            const { data, error } = await _supabase.rpc('ouvrir_litige', { p_token: token, p_motif: motif });
+            if (error) throw error;
+            renderEcranLienClient(data, token);
+        } catch (e) {
+            showModal("Erreur", e.message || "Impossible d'ouvrir ce litige.", "error");
+        }
+    }
+
+    function wrapText(ctx, texte, x, y, largeurMax, hauteurLigne) {
+        const mots = texte.split(' ');
+        let ligne = '';
+        const lignes = [];
+        mots.forEach(mot => {
+            const test = ligne + mot + ' ';
+            if (ctx.measureText(test).width > largeurMax && ligne !== '') {
+                lignes.push(ligne);
+                ligne = mot + ' ';
+            } else {
+                ligne = test;
+            }
+        });
+        lignes.push(ligne);
+        lignes.forEach((l, i) => ctx.fillText(l.trim(), x, y + i * hauteurLigne));
+    }
+
+    function telechargerRecu(tx) {
+        const total = Number(tx.montant_marchandise) + Number(tx.montant_livraison);
+        const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+        const badges = {
+            complete: { texte: '✅ Livraison confirmée et paiement débloqué', bg: '#d1fae5', couleur: '#065f46' },
+            fonds_consignes: { texte: '🔒 Fonds consignés — en attente de livraison', bg: '#fef3c7', couleur: '#92400e' },
+            litige: { texte: '🚩 Litige en cours de résolution', bg: '#fee2e2', couleur: '#b91c1c' },
+            remboursee: { texte: '💸 Transaction remboursée et annulée', bg: '#e2e8f0', couleur: '#334155' },
+        };
+        const badge = badges[tx.statut] || badges.complete;
+
+        const largeur = 600, hauteur = 720;
+        const canvas = document.createElement('canvas');
+        canvas.width = largeur; canvas.height = hauteur;
+        const ctx = canvas.getContext('2d');
+
+        // Fond
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, largeur, hauteur);
+
+        // Carte blanche
+        const pad = 40;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.roundRect(pad, pad, largeur - pad * 2, hauteur - pad * 2, 20);
+        ctx.fill();
+
+        let y = pad + 60;
+        ctx.fillStyle = '#0c1b33';
+        ctx.font = 'bold 26px Arial';
+        ctx.fillText('Reçu de transaction', pad + 40, y);
+        ctx.font = 'bold 26px Arial';
+        ctx.fillStyle = '#2563eb';
+        const largeurTitre = ctx.measureText('Reçu de transaction ').width;
+        ctx.fillText('EliorPay', pad + 40 + largeurTitre, y);
+
+        y += 30;
+        ctx.fillStyle = '#64748b';
+        ctx.font = '14px Arial';
+        ctx.fillText(`Généré le ${date}`, pad + 40, y);
+
+        y += 50;
+        const lignes = [
+            ['Article', tx.nom_article],
+            ['Montant marchandise', `${tx.montant_marchandise} FCFA`],
+            ['Frais de livraison', `${tx.montant_livraison} FCFA`],
+            ['Référence', `#${tx.id.substring(0, 8).toUpperCase()}`],
+        ];
+        lignes.forEach(([label, valeur]) => {
+            ctx.strokeStyle = '#f1f5f9';
+            ctx.beginPath(); ctx.moveTo(pad + 40, y + 14); ctx.lineTo(largeur - pad - 40, y + 14); ctx.stroke();
+            ctx.fillStyle = '#64748b'; ctx.font = '15px Arial';
+            ctx.fillText(label, pad + 40, y);
+            ctx.fillStyle = '#0c1b33'; ctx.font = 'bold 15px Arial';
+            const largeurValeur = ctx.measureText(valeur).width;
+            ctx.fillText(valeur, largeur - pad - 40 - largeurValeur, y);
+            y += 42;
+        });
+
+        y += 15;
+        ctx.fillStyle = '#059669';
+        ctx.font = 'bold 24px Arial';
+        const texteTotal = `Total : ${total} FCFA`;
+        const largeurTotal = ctx.measureText(texteTotal).width;
+        ctx.fillText(texteTotal, largeur - pad - 40 - largeurTotal, y);
+
+        y += 45;
+        ctx.font = 'bold 13px Arial';
+        const largeurBadge = ctx.measureText(badge.texte).width + 40;
+        const xBadge = (largeur - largeurBadge) / 2;
+        ctx.fillStyle = badge.bg;
+        ctx.beginPath();
+        ctx.roundRect(xBadge, y - 22, largeurBadge, 34, 999);
+        ctx.fill();
+        ctx.fillStyle = badge.couleur;
+        ctx.textAlign = 'center';
+        ctx.fillText(badge.texte, largeur / 2, y);
+        ctx.textAlign = 'left';
+
+        y = hauteur - pad - 50;
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'center';
+        wrapText(ctx, "Ce reçu atteste qu'une transaction triangulée (marchand / client / livreur) a été suivie via EliorPay.", largeur / 2, y, largeur - pad * 2 - 60, 15);
+        ctx.textAlign = 'left';
+
+        canvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `recu-eliorpay-${tx.id.substring(0, 8)}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 'image/png');
+    }
+
+    async function confirmerAchatViaLien(token) {
+        const nomInput = document.getElementById('lienClientNom');
+        const telInput = document.getElementById('lienClientTelephone');
+        const nom = nomInput ? nomInput.value.trim() : '';
+        const telephone = telInput ? telInput.value.trim() : '';
+
+        if (!nom) return showModal("Attention", "Veuillez indiquer votre nom.", "error");
+        if (!telephone) return showModal("Attention", "Veuillez indiquer votre numéro de téléphone.", "error");
+
+        if (!PAIEMENT_REEL_ACTIF) {
+            // Ancien comportement (sans vrai paiement) — gardé en secours
+            if (!_supabase) return showModal("Erreur", "Connexion au serveur indisponible.", "error");
+            try {
+                const { data, error } = await _supabase.rpc('confirmer_achat_lien', { p_token: token, p_nom_client: nom, p_telephone_client: telephone });
+                if (error) throw error;
+                renderEcranLienClient(data, token);
+            } catch (e) {
+                showModal("Erreur", e.message || "Impossible de confirmer cet achat.", "error");
+            }
+            return;
+        }
+
+        const contenu = document.getElementById('lienClientContenu');
+        contenu.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Préparation du paiement sécurisé…</p>`;
+
+        try {
+            const resp = await fetch(`${FUNCTIONS_BASE_URL}/paydunya-create-invoice`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_token: token, nom_client: nom, telephone_client: telephone })
+            });
+            const result = await resp.json();
+            if (!resp.ok || result.error) throw new Error(result.error || "Impossible de préparer le paiement.");
+
+            // Redirection vers la page de paiement sécurisée PayDunya
+            window.location.href = result.checkout_url;
+        } catch (e) {
+            showModal("Erreur", e.message || "Impossible de démarrer le paiement.", "error");
+            afficherEcranLienClient(token);
+        }
+    }
+
+    // Vérifie le paiement au retour depuis PayDunya (?client=TOKEN&paiement=retour&token=PAYDUNYA_TOKEN)
+    async function verifierRetourPaiement(clientToken, paydunyaToken) {
+        const contenu = document.getElementById('lienClientContenu');
+        contenu.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Vérification de votre paiement…</p>`;
+        try {
+            const resp = await fetch(`${FUNCTIONS_BASE_URL}/paydunya-verify-payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paydunya_token: paydunyaToken })
+            });
+            const result = await resp.json();
+            if (!resp.ok || result.error) throw new Error(result.error || "Vérification impossible.");
+
+            if (!result.paid) {
+                contenu.innerHTML = `<p class="text-center text-amber-600 text-sm py-8">Paiement non confirmé pour le moment (statut : ${result.statut_paydunya || 'inconnu'}). Si vous venez de payer, patientez quelques secondes puis rafraîchissez la page.</p>`;
+                return;
+            }
+        } catch (e) {
+            contenu.innerHTML = `<p class="text-center text-rose-500 text-sm py-8">${e.message || "Impossible de vérifier le paiement."}</p>`;
+            return;
+        }
+        afficherEcranLienClient(clientToken);
+    }
 </script>
+
 </body>
 </html>

@@ -229,6 +229,13 @@
                     <p class="text-slate-500 text-xs mb-4">Créez un compte pour chaque livreur avec qui vous travaillez régulièrement, puis communiquez-lui son pseudo et son mot de passe.</p>
                     <div class="space-y-3">
                         <input type="tel" id="livreurTelephone" placeholder="Téléphone du livreur" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                        <select id="livreurOperateur" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
+                            <option value="">Opérateur Mobile Money du livreur…</option>
+                            <option value="orange">Orange Money</option>
+                            <option value="mtn">MTN Mobile Money</option>
+                            <option value="moov">Moov Money</option>
+                            <option value="wave">Wave</option>
+                        </select>
                         <input type="password" id="livreurMotDePasse" placeholder="Mot de passe à lui communiquer" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20">
                         <button onclick="creerLivreurPartenaire()" class="w-full py-3.5 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95">
                             Ajouter ce livreur ➕
@@ -383,10 +390,15 @@
     // ⚠️ A REMPLIR : l'adresse de votre site web hébergé (PAS l'application Android).
     // Sert à construire les liens client/livreur, qui doivent rester valables même
     // si le marchand utilise l'application Android pour les générer.
-    const PUBLIC_WEB_BASE_URL = "https://VOTRE-SITE-HEBERGE.com/index.html";
+    const PUBLIC_WEB_BASE_URL = "https://eliormavericks.github.io/eliorpay/";
 
     const SUPABASE_URL = "https://qqhubtiyaueeidnobqnn.supabase.co";
     const SUPABASE_KEY = "sb_publishable_Nz0zeitdr0N_y_G_X0bAFg_sj6ByYwf";
+    const FUNCTIONS_BASE_URL = `${SUPABASE_URL}/functions/v1`;
+    // Passez à true une fois les Edge Functions PayDunya déployées et testées
+    // en sandbox. Tant que c'est false, l'app garde l'ancien comportement
+    // (statuts changés directement, sans vrai paiement).
+    const PAIEMENT_REEL_ACTIF = true;
     let _supabase = null;
     try {
         if (typeof supabase !== 'undefined') {
@@ -720,8 +732,10 @@
     async function creerLivreurPartenaire() {
         const telephone = document.getElementById('livreurTelephone').value.trim();
         const motDePasse = document.getElementById('livreurMotDePasse').value.trim();
+        const operateur = document.getElementById('livreurOperateur').value;
 
         if (!telephone) return showModal("Attention", "Veuillez entrer le numéro de téléphone du livreur.", "error");
+        if (PAIEMENT_REEL_ACTIF && !operateur) return showModal("Attention", "Veuillez indiquer l'opérateur Mobile Money du livreur (nécessaire pour le payer réellement).", "error");
         if (!motDePasse || motDePasse.length < 4) return showModal("Attention", "Le mot de passe doit contenir au moins 4 caractères.", "error");
         if (!_supabase) return showModal("Erreur", "Connexion au serveur indisponible.", "error");
 
@@ -729,13 +743,14 @@
 
         try {
             const { data, error } = await _supabase.rpc('creer_livreur', {
-                p_marchand_id: currentUser.id, p_telephone: telephone, p_password_hash: hash
+                p_marchand_id: currentUser.id, p_telephone: telephone, p_password_hash: hash, p_operateur: operateur || null
             });
             if (error) throw error;
             const nouveauLivreur = data[0];
 
             document.getElementById('livreurTelephone').value = '';
             document.getElementById('livreurMotDePasse').value = '';
+            document.getElementById('livreurOperateur').value = '';
 
             showModal(
                 "Livreur ajouté ✅",
@@ -864,7 +879,20 @@
         let nouveauSolde = null;
         let tx = getLocalTransactions().find(t => t.id === id);
 
-        if (_supabase) {
+        if (PAIEMENT_REEL_ACTIF) {
+            try {
+                const resp = await fetch(`${FUNCTIONS_BASE_URL}/paydunya-disburse-courier`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transaction_id: id, livreur_id: currentUser.id, code_secret: codeSecret })
+                });
+                const result = await resp.json();
+                if (!resp.ok || result.error) throw new Error(result.error || "Le versement a échoué.");
+                nouveauSolde = result.nouveau_solde;
+            } catch (e) {
+                return showModal("Erreur", e.message || "Impossible de finaliser la livraison. Vérifiez le code.", "error");
+            }
+        } else if (_supabase) {
             try {
                 const { data, error } = await _supabase.rpc('finaliser_livraison', {
                     p_transaction_id: id, p_livreur_id: currentUser.id, p_code_secret: codeSecret
@@ -1118,9 +1146,17 @@
         const params = new URLSearchParams(window.location.search);
         const tokenClient = params.get('client');
         const tokenMission = params.get('mission');
+        const retourPaiement = params.get('paiement');
+        const paydunyaToken = params.get('token');
 
         if (tokenClient) {
-            afficherEcranLienClient(tokenClient);
+            document.getElementById('authSection').classList.add('hidden');
+            document.getElementById('ecranLienClient').classList.remove('hidden');
+            if (retourPaiement === 'retour' && paydunyaToken) {
+                verifierRetourPaiement(tokenClient, paydunyaToken);
+            } else {
+                afficherEcranLienClient(tokenClient);
+            }
             return; // écran autonome, pas besoin du reste de l'app
         }
 
@@ -1135,15 +1171,24 @@
             document.querySelectorAll('.role-btn').forEach(btn => btn.disabled = true);
             const noteMission = document.createElement('div');
             noteMission.id = 'apercuMissionLien';
-            noteMission.className = 'text-[11px] text-center text-amber-700 font-bold bg-amber-50 border border-amber-100 rounded-xl py-2 px-3 mt-2';
-            noteMission.innerText = "Connectez-vous (ou créez un compte Livreur) pour accepter cette course.";
+            noteMission.className = 'bg-amber-50 border border-amber-100 rounded-2xl p-4 mt-2 text-center';
+            noteMission.innerHTML = `<p class="text-[11px] font-bold text-amber-700">Connectez-vous (ou créez un compte Livreur) pour accepter cette course.</p>`;
             document.querySelector('.grid.grid-cols-3').insertAdjacentElement('afterend', noteMission);
 
             if (_supabase) {
                 _supabase.rpc('apercu_livreur', { p_token: tokenMission }).then(({ data, error }) => {
                     if (!error && data && data[0]) {
                         const m = data[0];
-                        noteMission.innerHTML = `📦 Course proposée : <b>${m.nom_article}</b> — Gain : <b>${m.montant_livraison} FCFA</b><br><span class="font-normal">Connectez-vous (ou créez un compte Livreur) pour l'accepter.</span>`;
+                        noteMission.innerHTML = `
+                            <div class="my-2 flex justify-center">
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=MISSION-${m.id.substring(0,8).toUpperCase()}" class="border-4 border-white shadow-md rounded-xl" alt="Référence de la course">
+                            </div>
+                            <span class="text-[9px] font-black text-amber-500 uppercase tracking-widest block">Référence #${m.id.substring(0,8).toUpperCase()}</span>
+                            <p class="text-sm font-bold text-slate-800 mt-1">📦 ${m.nom_article}</p>
+                            <p class="text-xs font-black text-emerald-600 mt-0.5">Gain estimé : ${m.montant_livraison} FCFA</p>
+                            <p class="text-[11px] text-amber-700 font-bold mt-2">Connectez-vous (ou créez un compte Livreur) pour l'accepter.</p>
+                            <p class="text-[10px] text-slate-400 mt-1">Le code secret de déblocage vous sera montré en personne par le client à la livraison.</p>
+                        `;
                     }
                 });
             }
@@ -1176,21 +1221,26 @@
         const contenu = document.getElementById('lienClientContenu');
         const total = Number(tx.montant_marchandise) + Number(tx.montant_livraison);
 
+        const detailsMontants = `
+            <div class="flex justify-between mt-3 pt-3 border-t border-slate-200/60 text-xs font-bold text-slate-500">
+                <span>📦 Marchandise : ${tx.montant_marchandise} F</span>
+                <span>🛵 Livraison : ${tx.montant_livraison} F</span>
+            </div>
+            <div class="mt-3 text-center">
+                <span class="text-lg font-black text-gpDark">${total} FCFA</span>
+            </div>`;
+
         if (tx.statut === 'initiee') {
             contenu.innerHTML = `
                 <div class="bg-slate-50 rounded-2xl p-5 mb-4 border border-slate-100">
                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Article</span>
                     <span class="font-bold text-slate-800">${tx.nom_article}</span>
-                    <div class="flex justify-between mt-3 pt-3 border-t border-slate-200/60 text-xs font-bold text-slate-500">
-                        <span>📦 Marchandise : ${tx.montant_marchandise} F</span>
-                        <span>🛵 Livraison : ${tx.montant_livraison} F</span>
-                    </div>
-                    <div class="mt-3 text-center">
-                        <span class="text-lg font-black text-gpDark">${total} FCFA</span>
-                    </div>
+                    ${detailsMontants}
                 </div>
-                <label class="block text-xs font-bold text-slate-500 mb-1">Votre nom (optionnel) :</label>
-                <input type="text" id="lienClientNom" placeholder="Ex: Awa K." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 mb-4">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Votre nom :</label>
+                <input type="text" id="lienClientNom" placeholder="Ex: Awa K." class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 mb-3">
+                <label class="block text-xs font-bold text-slate-500 mb-1">Votre numéro de téléphone :</label>
+                <input type="tel" id="lienClientTelephone" placeholder="Ex: 07 00 00 00 00" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 mb-4">
                 <button onclick="confirmerAchatViaLien('${token}')" class="w-full py-4 bg-gpBlue hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all active:scale-[0.98]">
                     Confirmer & Bloquer les Fonds 🔒
                 </button>
@@ -1204,6 +1254,13 @@
         let qrHtml = '';
         let actionsHtml = '';
 
+        const blocLivreur = tx.livreur_nom ? `
+            <div class="bg-blue-50 rounded-xl p-3 mt-3 text-left">
+                <span class="text-[10px] font-black text-blue-400 uppercase tracking-wider block">Livreur assigné</span>
+                <span class="text-sm font-bold text-gpDark">🛵 ${tx.livreur_nom.toUpperCase()}</span>
+            </div>` : `
+            <p class="text-slate-400 text-[10px] text-center mt-3">⏳ En attente qu'un livreur prenne en charge votre course.</p>`;
+
         if (tx.statut === 'fonds_consignes') {
             badgeHtml = `<span class="inline-block px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-black uppercase rounded-full">Fonds consignés — Montrez ce code au livreur 🔒</span>`;
             qrHtml = `
@@ -1212,6 +1269,7 @@
                 </div>
                 <span class="text-sm font-black text-gpBlue block tracking-widest mb-2">${tx.code_secret_client}</span>`;
             actionsHtml = `
+                ${blocLivreur}
                 <button onclick='telechargerRecu(${JSON.stringify(tx)})' class="w-full mt-4 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md transition-all active:scale-95">
                     📄 Télécharger mon reçu de consignation
                 </button>
@@ -1225,6 +1283,7 @@
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${tx.code_secret_client}" class="border-4 border-white shadow-md rounded-xl" alt="QR Code">
                 </div>`;
             actionsHtml = `
+                ${blocLivreur}
                 <button onclick='telechargerRecu(${JSON.stringify(tx)})' class="w-full mt-4 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md transition-all active:scale-95">
                     📄 Télécharger mon reçu final
                 </button>`;
@@ -1246,6 +1305,7 @@
         contenu.innerHTML = `
             <div class="bg-slate-50 rounded-2xl p-5 text-center border border-slate-100">
                 <span class="font-bold text-slate-800 text-sm">${tx.nom_article}</span>
+                ${detailsMontants}
                 ${qrHtml}
                 ${badgeHtml}
             </div>
@@ -1281,55 +1341,188 @@
         }
     }
 
+    function wrapText(ctx, texte, x, y, largeurMax, hauteurLigne) {
+        const mots = texte.split(' ');
+        let ligne = '';
+        const lignes = [];
+        mots.forEach(mot => {
+            const test = ligne + mot + ' ';
+            if (ctx.measureText(test).width > largeurMax && ligne !== '') {
+                lignes.push(ligne);
+                ligne = mot + ' ';
+            } else {
+                ligne = test;
+            }
+        });
+        lignes.push(ligne);
+        lignes.forEach((l, i) => ctx.fillText(l.trim(), x, y + i * hauteurLigne));
+    }
+
     function telechargerRecu(tx) {
         const total = Number(tx.montant_marchandise) + Number(tx.montant_livraison);
-        const date = new Date().toLocaleDateString('fr-FR');
-        const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-<title>Reçu EliorPay - ${tx.nom_article}</title>
-<style>
-  body{font-family:Arial,sans-serif;background:#f8fafc;padding:40px;color:#0c1b33;}
-  .recu{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 10px 30px rgba(0,0,0,0.08);}
-  h1{font-size:20px;margin:0 0 4px;} .sub{color:#64748b;font-size:12px;margin-bottom:24px;}
-  .ligne{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f1f5f9;font-size:14px;}
-  .total{font-weight:bold;font-size:18px;color:#059669;margin-top:16px;text-align:right;}
-  .badge{display:inline-block;background:#d1fae5;color:#065f46;font-size:11px;font-weight:bold;padding:4px 10px;border-radius:999px;margin-top:16px;}
-  .footer{margin-top:24px;font-size:10px;color:#94a3b8;text-align:center;}
-</style></head><body>
-  <div class="recu">
-    <h1>Reçu de transaction — EliorPay</h1>
-    <p class="sub">Généré le ${date}</p>
-    <div class="ligne"><span>Article</span><b>${tx.nom_article}</b></div>
-    <div class="ligne"><span>Montant marchandise</span><b>${tx.montant_marchandise} FCFA</b></div>
-    <div class="ligne"><span>Frais de livraison</span><b>${tx.montant_livraison} FCFA</b></div>
-    <div class="ligne"><span>Référence</span><b>#${tx.id.substring(0,8).toUpperCase()}</b></div>
-    <div class="total">Total : ${total} FCFA</div>
-    <div style="text-align:center"><span class="badge">✅ Livraison confirmée et paiement débloqué</span></div>
-    <p class="footer">Ce reçu atteste qu'une transaction triangulée (marchand / client / livreur) a été menée à terme via EliorPay.</p>
-  </div>
-</body></html>`;
-        const blob = new Blob([html], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `recu-eliorpay-${tx.id.substring(0,8)}.html`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        const date = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+        const badges = {
+            complete: { texte: '✅ Livraison confirmée et paiement débloqué', bg: '#d1fae5', couleur: '#065f46' },
+            fonds_consignes: { texte: '🔒 Fonds consignés — en attente de livraison', bg: '#fef3c7', couleur: '#92400e' },
+            litige: { texte: '🚩 Litige en cours de résolution', bg: '#fee2e2', couleur: '#b91c1c' },
+            remboursee: { texte: '💸 Transaction remboursée et annulée', bg: '#e2e8f0', couleur: '#334155' },
+        };
+        const badge = badges[tx.statut] || badges.complete;
+
+        const largeur = 600, hauteur = 720;
+        const canvas = document.createElement('canvas');
+        canvas.width = largeur; canvas.height = hauteur;
+        const ctx = canvas.getContext('2d');
+
+        // Fond
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(0, 0, largeur, hauteur);
+
+        // Carte blanche
+        const pad = 40;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.roundRect(pad, pad, largeur - pad * 2, hauteur - pad * 2, 20);
+        ctx.fill();
+
+        let y = pad + 60;
+        ctx.fillStyle = '#0c1b33';
+        ctx.font = 'bold 26px Arial';
+        ctx.fillText('Reçu de transaction', pad + 40, y);
+        ctx.font = 'bold 26px Arial';
+        ctx.fillStyle = '#2563eb';
+        const largeurTitre = ctx.measureText('Reçu de transaction ').width;
+        ctx.fillText('EliorPay', pad + 40 + largeurTitre, y);
+
+        y += 30;
+        ctx.fillStyle = '#64748b';
+        ctx.font = '14px Arial';
+        ctx.fillText(`Généré le ${date}`, pad + 40, y);
+
+        y += 50;
+        const lignes = [
+            ['Article', tx.nom_article],
+            ['Montant marchandise', `${tx.montant_marchandise} FCFA`],
+            ['Frais de livraison', `${tx.montant_livraison} FCFA`],
+            ['Référence', `#${tx.id.substring(0, 8).toUpperCase()}`],
+        ];
+        lignes.forEach(([label, valeur]) => {
+            ctx.strokeStyle = '#f1f5f9';
+            ctx.beginPath(); ctx.moveTo(pad + 40, y + 14); ctx.lineTo(largeur - pad - 40, y + 14); ctx.stroke();
+            ctx.fillStyle = '#64748b'; ctx.font = '15px Arial';
+            ctx.fillText(label, pad + 40, y);
+            ctx.fillStyle = '#0c1b33'; ctx.font = 'bold 15px Arial';
+            const largeurValeur = ctx.measureText(valeur).width;
+            ctx.fillText(valeur, largeur - pad - 40 - largeurValeur, y);
+            y += 42;
+        });
+
+        y += 15;
+        ctx.fillStyle = '#059669';
+        ctx.font = 'bold 24px Arial';
+        const texteTotal = `Total : ${total} FCFA`;
+        const largeurTotal = ctx.measureText(texteTotal).width;
+        ctx.fillText(texteTotal, largeur - pad - 40 - largeurTotal, y);
+
+        y += 45;
+        ctx.font = 'bold 13px Arial';
+        const largeurBadge = ctx.measureText(badge.texte).width + 40;
+        const xBadge = (largeur - largeurBadge) / 2;
+        ctx.fillStyle = badge.bg;
+        ctx.beginPath();
+        ctx.roundRect(xBadge, y - 22, largeurBadge, 34, 999);
+        ctx.fill();
+        ctx.fillStyle = badge.couleur;
+        ctx.textAlign = 'center';
+        ctx.fillText(badge.texte, largeur / 2, y);
+        ctx.textAlign = 'left';
+
+        y = hauteur - pad - 50;
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'center';
+        wrapText(ctx, "Ce reçu atteste qu'une transaction triangulée (marchand / client / livreur) a été suivie via EliorPay.", largeur / 2, y, largeur - pad * 2 - 60, 15);
+        ctx.textAlign = 'left';
+
+        canvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `recu-eliorpay-${tx.id.substring(0, 8)}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 'image/png');
     }
 
     async function confirmerAchatViaLien(token) {
         const nomInput = document.getElementById('lienClientNom');
+        const telInput = document.getElementById('lienClientTelephone');
         const nom = nomInput ? nomInput.value.trim() : '';
-        if (!_supabase) return showModal("Erreur", "Connexion au serveur indisponible.", "error");
+        const telephone = telInput ? telInput.value.trim() : '';
+
+        if (!nom) return showModal("Attention", "Veuillez indiquer votre nom.", "error");
+        if (!telephone) return showModal("Attention", "Veuillez indiquer votre numéro de téléphone.", "error");
+
+        if (!PAIEMENT_REEL_ACTIF) {
+            // Ancien comportement (sans vrai paiement) — gardé en secours
+            if (!_supabase) return showModal("Erreur", "Connexion au serveur indisponible.", "error");
+            try {
+                const { data, error } = await _supabase.rpc('confirmer_achat_lien', { p_token: token, p_nom_client: nom, p_telephone_client: telephone });
+                if (error) throw error;
+                renderEcranLienClient(data, token);
+            } catch (e) {
+                showModal("Erreur", e.message || "Impossible de confirmer cet achat.", "error");
+            }
+            return;
+        }
+
+        const contenu = document.getElementById('lienClientContenu');
+        contenu.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Préparation du paiement sécurisé…</p>`;
+
         try {
-            const { data, error } = await _supabase.rpc('confirmer_achat_lien', { p_token: token, p_nom_client: nom });
-            if (error) throw error;
-            renderEcranLienClient(data, token);
+            const resp = await fetch(`${FUNCTIONS_BASE_URL}/paydunya-create-invoice`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ client_token: token, nom_client: nom, telephone_client: telephone })
+            });
+            const result = await resp.json();
+            if (!resp.ok || result.error) throw new Error(result.error || "Impossible de préparer le paiement.");
+
+            // Redirection vers la page de paiement sécurisée PayDunya
+            window.location.href = result.checkout_url;
         } catch (e) {
-            showModal("Erreur", e.message || "Impossible de confirmer cet achat.", "error");
+            showModal("Erreur", e.message || "Impossible de démarrer le paiement.", "error");
+            afficherEcranLienClient(token);
         }
     }
+
+    // Vérifie le paiement au retour depuis PayDunya (?client=TOKEN&paiement=retour&token=PAYDUNYA_TOKEN)
+    async function verifierRetourPaiement(clientToken, paydunyaToken) {
+        const contenu = document.getElementById('lienClientContenu');
+        contenu.innerHTML = `<p class="text-center text-slate-400 text-sm py-8">Vérification de votre paiement…</p>`;
+        try {
+            const resp = await fetch(`${FUNCTIONS_BASE_URL}/paydunya-verify-payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paydunya_token: paydunyaToken })
+            });
+            const result = await resp.json();
+            if (!resp.ok || result.error) throw new Error(result.error || "Vérification impossible.");
+
+            if (!result.paid) {
+                contenu.innerHTML = `<p class="text-center text-amber-600 text-sm py-8">Paiement non confirmé pour le moment (statut : ${result.statut_paydunya || 'inconnu'}). Si vous venez de payer, patientez quelques secondes puis rafraîchissez la page.</p>`;
+                return;
+            }
+        } catch (e) {
+            contenu.innerHTML = `<p class="text-center text-rose-500 text-sm py-8">${e.message || "Impossible de vérifier le paiement."}</p>`;
+            return;
+        }
+        afficherEcranLienClient(clientToken);
+    }
 </script>
+
 </body>
 </html>
